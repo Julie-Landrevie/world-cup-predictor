@@ -243,39 +243,52 @@ CONFEDERATION_BOOST = {
 #   obtiennent un bonus significatif
 # ============================================================
 
+# Résultats vérifiés sur Wikipedia
+# 2018 : France champion, Croatie finaliste, Belgique 3e, Angleterre 4e
+#        QF: Uruguay, Russie, Brésil, Suède
+#        R16: Argentine, Danemark, Mexique, Suisse, Japon, Espagne, Colombie, Sénégal(non qualifié)
+# 2022 : Argentine champion, France finaliste, Croatie 3e, Maroc 4e
+#        QF: Angleterre, Brésil, Portugal, Pays-Bas
+#        R16: Sénégal, Australie, Japon, Corée du Sud, USA, Pologne, Suisse, Espagne
+
 WC_PERFORMANCE = {
     # (points_2018, points_2022)
-    "France":        (7, 3),   # Final 2018, QF 2022      → +10%
-    "Argentina":     (1, 10),  # R16 2018, Champion 2022  → +11%
-    "Croatia":       (7, 5),   # Final 2018, SF 2022      → +12%
-    "England":       (5, 3),   # SF 2018, QF 2022         → +8%
-    "Belgium":       (5, 0),   # 3e 2018, groupes 2022    → +5%
-    "Brazil":        (3, 3),   # QF 2018, QF 2022         → +6%
-    "Uruguay":       (3, 0),   # QF 2018, groupes 2022    → +3%
-    "Sweden":        (3, 0),   # QF 2018, non qualifiée   → +3%
-    "Netherlands":   (0, 3),   # absente 2018, QF 2022    → +3%
-    "Portugal":      (0, 3),   # R16 2018, QF 2022        → +4%
-    "Spain":         (1, 3),   # R16 2018, QF 2022        → +4%
-    "Switzerland":   (1, 3),   # R16 2018, QF 2022        → +4%
-    "Morocco":       (0, 5),   # groupes 2018, SF 2022    → +5% (une seule WC)
-    "Japan":         (1, 1),   # R16 2018, R16 2022       → +2%
-    "South Korea":   (1, 1),   # R16 2018, R16 2022       → +2%
-    "Australia":     (0, 1),   # absente 2018, R16 2022   → +1%
-    "Senegal":       (0, 1),   # absente 2018, R16 2022   → +1%
-    "United States": (0, 1),   # absente 2018, R16 2022   → +1%
-    "Germany":       (0, 0),   # groupes 2018, groupes 2022 → +0%
-    "Denmark":       (0, 1),   # R16 2018, R16 2022       → +2%
-    "Poland":        (0, 1),   # groupes 2018, R16 2022   → +1%
-    "Ecuador":       (0, 0),
-    "Mexico":        (1, 0),   # R16 2018, groupes 2022   → +1%
-    "Colombia":      (0, 0),
-    "Norway":        (0, 0),   # non qualifiée les 2      → +0%
-    "Austria":       (0, 0),
-    "Turkey":        (0, 0),
-    "Canada":        (0, 0),   # première qualification depuis 1986
-    "Iran":          (0, 0),
-    "Tunisia":       (0, 0),
-    "Saudi Arabia":  (0, 0),
+    "France":        (10, 7),  # Champion 2018, Finaliste 2022       → +17%
+    "Argentina":     (1,  10), # R16 2018, Champion 2022             → +11%
+    "Croatia":       (7,  5),  # Finaliste 2018, 3e 2022             → +12%
+    "Belgium":       (5,  0),  # 3e 2018, groupes 2022               → +5%
+    "England":       (5,  3),  # 4e 2018, QF 2022                    → +8%
+    "Brazil":        (3,  3),  # QF 2018, QF 2022                    → +6%
+    "Uruguay":       (3,  0),  # QF 2018, groupes 2022               → +3%
+    "Russia":        (3,  0),  # QF 2018, suspendue 2022             → +3% (non qualifiée 2026)
+    "Sweden":        (3,  0),  # QF 2018, non qualifiée 2022         → +3%
+    "Morocco":       (0,  5),  # groupes 2018, 4e 2022               → +5%
+    "Portugal":      (1,  3),  # R16 2018, QF 2022                   → +4%
+    "Netherlands":   (0,  3),  # absente 2018, QF 2022               → +3%
+    "Spain":         (1,  1),  # R16 2018, R16 2022                  → +2%
+    "Switzerland":   (1,  1),  # R16 2018, R16 2022                  → +2%  (était QF 2022 ✓)
+    "Japan":         (1,  1),  # R16 2018, R16 2022 (TAB)            → +2%
+    "South Korea":   (1,  1),  # R16 2018, R16 2022                  → +2%
+    "Mexico":        (1,  0),  # R16 2018, groupes 2022              → +1%
+    "Denmark":       (1,  1),  # R16 2018, R16 2022                  → +2%
+    "Colombia":      (1,  0),  # R16 2018, non qualifiée 2022        → +1%
+    "Australia":     (0,  1),  # absente 2018, R16 2022              → +1%
+    "Senegal":       (0,  1),  # absente 2018, R16 2022              → +1%
+    "United States": (0,  1),  # absente 2018, R16 2022              → +1%
+    "Poland":        (0,  1),  # groupes 2018, R16 2022              → +1%
+    "Germany":       (0,  0),  # groupes 2018, groupes 2022          → +0%
+    "Ecuador":       (0,  0),  # non qualifiée 2018, groupes 2022    → +0%
+    "Mexico":        (1,  0),  # R16 2018, groupes 2022              → +1%
+    "Norway":        (0,  0),  # non qualifiée les 2                 → +0%
+    "Austria":       (0,  0),  # non qualifiée les 2                 → +0%
+    "Turkey":        (0,  0),  # non qualifiée les 2                 → +0%
+    "Canada":        (0,  0),  # non qualifiée les 2                 → +0%
+    "Iran":          (0,  0),  # groupes 2018, groupes 2022          → +0%
+    "Tunisia":       (0,  0),  # groupes 2018, groupes 2022          → +0%
+    "Saudi Arabia":  (0,  0),  # groupes 2018, groupes 2022          → +0%
+    "Algeria":       (0,  0),  # non qualifiée les 2                 → +0%
+    "Ghana":         (0,  0),  # non qualifiée 2018, groupes 2022    → +0%
+    "Ivory Coast":   (0,  0),  # non qualifiée les 2                 → +0%
 }
 
 def get_wc_experience_bonus(team: str) -> float:
