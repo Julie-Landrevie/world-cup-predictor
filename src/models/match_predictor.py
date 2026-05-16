@@ -1,25 +1,28 @@
 """
 src/models/match_predictor.py
 ------------------------------
-Modèle de Poisson amélioré — v3
+Modèle de Poisson amélioré — v4
 
-3 AMÉLIORATIONS PAR RAPPORT À LA V2 :
+AMÉLIORATIONS PAR RAPPORT À LA V3 :
 
-1. DONNÉES RÉCENTES RENFORCÉES
-   min_year=2018, decay_rate=0.005
-   Les matchs de 2018-2026 comptent beaucoup plus.
-   Les matchs d'avant 2018 sont exclus.
+1. COEFFICIENTS DE CONFÉDÉRATION
+   UEFA et CONMEBOL boostés car historiquement les seules à remporter la WC.
+   CAF, AFC, CONCACAF, OFC avec des coefficients réduits.
 
-2. QUALIFICATIONS WC SÉPARÉES
-   Les qualifications WC reçoivent un poids 3.0 (au lieu de 2.0)
-   car elles sont les plus représentatives du niveau réel en vue du tournoi.
+2. EURO VALORISÉ VS AUTRES TOURNOIS CONTINENTAUX
+   UEFA Euro : poids 3.5 (vs CAN 2.0, Gold Cup 1.8)
+   Reflète le niveau objectivement plus élevé de l'Euro.
 
-3. CLASSEMENT FIFA INTÉGRÉ
-   Le classement FIFA avril 2026 est encodé manuellement
-   (FIFA bloque le scraping automatique).
-   Il sert de facteur de correction sur les forces d'attaque/défense :
-   une équipe bien classée mais avec peu de matchs récents
-   dans le dataset est "boostée" vers son vrai niveau.
+3. COTES BOOKMAKERS INTÉGRÉES
+   Probabilités agrégées depuis Polymarket + Kalshi (mai 2026)
+   ~1 milliard de dollars de volume — signal très fiable.
+   Utilisées comme correction finale sur les forces d'équipe.
+
+4. FACTEUR D'EXPÉRIENCE WC
+   Bonus pour équipes ayant atteint les QF ou + en 2018/2022.
+
+5. PLAFONNEMENT AMÉLIORÉ
+   att max 2.2, def min 0.2 pour éviter les valeurs extrêmes.
 
 POINT D'ATTENTION (inchangé) :
    goalscorers.csv incomplet sur certaines périodes.
@@ -111,6 +114,153 @@ FIFA_RANKING = {
 # Nombre total d'équipes FIFA (pour normalisation)
 FIFA_TOTAL_TEAMS = 210
 
+# ============================================================
+# COTES BOOKMAKERS — Polymarket + Kalshi agrégés (mai 2026)
+# Source : defirate.com/prediction-markets/world-cup-odds
+# ~1 milliard $ de volume — signal très fiable
+# Probabilités implicites (après correction marge bookmaker)
+# ============================================================
+
+BOOKMAKER_PROBS = {
+    "France":        0.174,  # +475 — favori marché
+    "Spain":         0.165,  # +505
+    "England":       0.113,  # +782
+    "Argentina":     0.105,  # ~+850
+    "Brazil":        0.095,  # +800
+    "Germany":       0.065,  # ~+1200
+    "Portugal":      0.055,  # ~+1400
+    "Netherlands":   0.040,
+    "Morocco":       0.020,  # 50-1
+    "United States": 0.016,  # 60-1 (hôte)
+    "Belgium":       0.015,
+    "Colombia":      0.014,
+    "Switzerland":   0.012,  # 80-1
+    "Croatia":       0.012,  # 80-1
+    "Norway":        0.010,  # 30-1 (après allongement)
+    "Mexico":        0.009,  # 75-1
+    "Japan":         0.008,
+    "South Korea":   0.007,
+    "Australia":     0.006,
+    "Turkey":        0.006,  # 100-1
+    "Uruguay":       0.008,
+    "Ecuador":       0.006,  # 90-1
+    "Senegal":       0.005,
+    "Sweden":        0.005,
+    "Austria":       0.004,
+    "Canada":        0.004,
+    "Ghana":         0.003,
+    "Ivory Coast":   0.003,
+    "Tunisia":       0.002,
+    "Saudi Arabia":  0.002,
+    "South Africa":  0.002,
+    "Scotland":      0.002,
+    "Czech Republic":0.003,
+    "Bosnia and Herzegovina": 0.002,
+    "Paraguay":      0.002,
+    "Algeria":       0.002,
+    "Iran":          0.001,
+    "Egypt":         0.001,
+    "DR Congo":      0.001,
+    "New Zealand":   0.001,
+    "Jordan":        0.0005,
+    "Iraq":          0.0005,
+    "Uzbekistan":    0.001,
+    "Qatar":         0.001,
+    "Haiti":         0.0002,
+    "Panama":        0.0005,
+    "Cape Verde":    0.001,
+    "Curaçao":       0.0002,
+}
+
+# ============================================================
+# COEFFICIENTS DE CONFÉDÉRATION
+# Basés sur l'historique des vainqueurs de la WC
+# UEFA: 12 victoires, CONMEBOL: 9, autres: 0
+# ============================================================
+
+CONFEDERATION = {
+    # UEFA — Europe
+    "France": "UEFA", "Spain": "UEFA", "England": "UEFA",
+    "Germany": "UEFA", "Portugal": "UEFA", "Netherlands": "UEFA",
+    "Belgium": "UEFA", "Croatia": "UEFA", "Switzerland": "UEFA",
+    "Norway": "UEFA", "Sweden": "UEFA", "Denmark": "UEFA",
+    "Austria": "UEFA", "Czech Republic": "UEFA", "Scotland": "UEFA",
+    "Turkey": "UEFA", "Bosnia and Herzegovina": "UEFA",
+    "Hungary": "UEFA", "Ukraine": "UEFA", "Serbia": "UEFA",
+    "Poland": "UEFA", "Slovakia": "UEFA", "Albania": "UEFA",
+    "Georgia": "UEFA", "Slovenia": "UEFA", "Romania": "UEFA",
+
+    # CONMEBOL — Amérique du Sud
+    "Argentina": "CONMEBOL", "Brazil": "CONMEBOL",
+    "Colombia": "CONMEBOL", "Uruguay": "CONMEBOL",
+    "Ecuador": "CONMEBOL", "Paraguay": "CONMEBOL",
+    "Bolivia": "CONMEBOL", "Chile": "CONMEBOL",
+    "Peru": "CONMEBOL", "Venezuela": "CONMEBOL",
+
+    # CONCACAF — Amérique du Nord/Centrale
+    "United States": "CONCACAF", "Mexico": "CONCACAF",
+    "Canada": "CONCACAF", "Panama": "CONCACAF",
+    "Costa Rica": "CONCACAF", "Jamaica": "CONCACAF",
+    "Honduras": "CONCACAF", "Haiti": "CONCACAF",
+    "Curaçao": "CONCACAF", "Cuba": "CONCACAF",
+
+    # CAF — Afrique
+    "Morocco": "CAF", "Senegal": "CAF", "Ivory Coast": "CAF",
+    "Ghana": "CAF", "Tunisia": "CAF", "Egypt": "CAF",
+    "South Africa": "CAF", "DR Congo": "CAF", "Algeria": "CAF",
+    "Cameroon": "CAF", "Nigeria": "CAF", "Cape Verde": "CAF",
+    "Mali": "CAF",
+
+    # AFC — Asie
+    "Japan": "AFC", "South Korea": "AFC", "Australia": "AFC",
+    "Saudi Arabia": "AFC", "Iran": "AFC", "Jordan": "AFC",
+    "Iraq": "AFC", "Uzbekistan": "AFC", "Qatar": "AFC",
+    "Indonesia": "AFC", "Thailand": "AFC",
+
+    # OFC — Océanie
+    "New Zealand": "OFC",
+}
+
+CONFEDERATION_BOOST = {
+    "UEFA":     1.08,   # historique dominant
+    "CONMEBOL": 1.06,   # Argentine/Brésil très forts
+    "CONCACAF": 0.97,   # compétitifs mais pas de victoires WC
+    "CAF":      0.95,   # jamais vainqueur WC
+    "AFC":      0.94,   # jamais vainqueur WC
+    "OFC":      0.90,   # niveau plus faible
+}
+
+# ============================================================
+# EXPÉRIENCE WC — Bonus pour équipes récemment performantes
+# Quarts de finale ou mieux en 2018 ET/OU 2022
+# ============================================================
+
+WC_EXPERIENCE_BONUS = {
+    # Finalistes récents
+    "France":      1.08,  # Final 2018, QF 2022
+    "Argentina":   1.08,  # Champion 2022
+    "Croatia":     1.05,  # Final 2018, SF 2022
+    # Demi-finalistes
+    "England":     1.05,  # SF 2018, QF 2022
+    "Belgium":     1.04,  # 3e 2018
+    "Morocco":     1.04,  # SF 2022 (historique)
+    # Quart-de-finalistes
+    "Brazil":      1.04,  # QF 2018, QF 2022
+    "Uruguay":     1.03,  # QF 2018
+    "Sweden":      1.02,  # QF 2018
+    "Russia":      1.02,  # QF 2018
+    "Japan":       1.03,  # R16 2022 (pénaltys)
+    "Netherlands": 1.03,  # QF 2022
+    "Portugal":    1.03,  # QF 2022
+    "Spain":       1.03,  # QF 2022
+    "Switzerland": 1.02,  # R16 2018, QF 2022
+    "Australia":   1.02,  # R16 2022
+    "South Korea": 1.02,  # R16 2022
+    "United States": 1.01, # R16 2022
+    "Poland":      1.01,  # R16 2022
+    "Senegal":     1.02,  # R16 2022
+}
+
 def get_fifa_score(team: str) -> float:
     """
     Convertit le classement FIFA en score entre 0.5 et 1.5.
@@ -131,31 +281,31 @@ def get_fifa_score(team: str) -> float:
 # ============================================================
 
 TOURNAMENT_WEIGHTS = {
-    # Compétitions majeures — poids maximum
+    # Compétitions majeures
     "FIFA World Cup":                       4.0,
-    "UEFA Euro":                            3.0,
+    "UEFA Euro":                            3.5,  # ← v4: augmenté car niveau > autres tournois continentaux
     "Copa América":                         3.0,
-    "African Cup of Nations":               2.5,
-    "AFC Asian Cup":                        2.5,
-    "Gold Cup":                             2.0,
+    "African Cup of Nations":               2.0,  # ← v4: réduit (niveau < Euro)
+    "AFC Asian Cup":                        2.0,  # ← v4: réduit
+    "Gold Cup":                             1.8,  # ← v4: réduit
 
-    # Qualifications WC — poids élevé (représentatif du niveau réel)
-    "FIFA World Cup qualification":         3.0,  # ← augmenté de 2.0 à 3.0
+    # Qualifications WC — très représentatif
+    "FIFA World Cup qualification":         3.0,
 
-    # Autres qualifications
-    "UEFA Euro qualification":              1.8,
-    "African Cup of Nations qualification": 1.8,
-    "AFC Asian Cup qualification":          1.8,
-    "CONCACAF Nations League":              1.8,
+    # Qualifications continentales
+    "UEFA Euro qualification":              2.0,  # ← v4: augmenté (niveau élevé)
+    "African Cup of Nations qualification": 1.5,
+    "AFC Asian Cup qualification":          1.5,
+    "CONCACAF Nations League":              1.5,
 
-    # Nations League et tournois régionaux
-    "UEFA Nations League":                  2.0,  # ← augmenté car compétitif
+    # Nations League
+    "UEFA Nations League":                  2.2,  # ← v4: augmenté (très compétitif)
 
-    # Amicaux — poids faible
-    "Friendly":                             0.2,  # ← réduit de 0.3 à 0.2
+    # Amicaux
+    "Friendly":                             0.2,
 }
 
-DEFAULT_WEIGHT = 1.2
+DEFAULT_WEIGHT = 1.0
 
 
 class PoissonPredictor:
@@ -235,9 +385,23 @@ class PoissonPredictor:
             (df["away_score"] * df["weight"]).sum()
         ) / (2 * total_w)
 
-        # Initialisation — on part du score FIFA comme point de départ
-        att  = {t: get_fifa_score(t) for t in self.teams_}
-        deff = {t: 2.0 - get_fifa_score(t) for t in self.teams_}  # inverse : meilleur = moins encaisse
+        # Initialisation — combinaison FIFA + bookmakers + expérience WC
+        att  = {}
+        deff = {}
+        for t in self.teams_:
+            fifa_s    = get_fifa_score(t)
+            book_prob = BOOKMAKER_PROBS.get(t, 0.005)
+            # Conversion proba bookmaker en force relative (0.5 à 1.5)
+            book_s    = 0.5 + min(book_prob / 0.18, 1.0)  # normalise sur France (17.4%)
+            # Coefficient de confédération
+            conf      = CONFEDERATION.get(t, "other")
+            conf_b    = CONFEDERATION_BOOST.get(conf, 1.0)
+            # Expérience WC
+            exp_b     = WC_EXPERIENCE_BONUS.get(t, 1.0)
+            # Force initiale = moyenne pondérée FIFA + bookmakers
+            base      = 0.4 * fifa_s + 0.6 * book_s
+            att[t]    = base * conf_b * exp_b
+            deff[t]   = (2.0 - base) * conf_b
 
         # Itérations
         for iteration in range(self.n_iter):
@@ -284,12 +448,21 @@ class PoissonPredictor:
             att  = {t: v / att_mean  for t, v in att_new.items()}
             deff = {t: v / deff_mean for t, v in deff_new.items()}
 
-            # Correction FIFA à chaque itération — on tire doucement vers le ranking
-            fifa_weight = max(0.0, 0.3 - iteration * 0.006)  # diminue progressivement
+            # Correction progressive vers FIFA + bookmakers
+            corr_weight = max(0.0, 0.25 - iteration * 0.005)
             for team in self.teams_:
-                fifa_s = get_fifa_score(team)
-                att[team]  = (1 - fifa_weight) * att[team]  + fifa_weight * fifa_s
-                deff[team] = (1 - fifa_weight) * deff[team] + fifa_weight * (2.0 - fifa_s)
+                fifa_s    = get_fifa_score(team)
+                book_prob = BOOKMAKER_PROBS.get(team, 0.005)
+                book_s    = 0.5 + min(book_prob / 0.18, 1.0)
+                conf_b    = CONFEDERATION_BOOST.get(CONFEDERATION.get(team, "other"), 1.0)
+                target    = (0.4 * fifa_s + 0.6 * book_s) * conf_b
+                att[team]  = (1 - corr_weight) * att[team]  + corr_weight * target
+                deff[team] = (1 - corr_weight) * deff[team] + corr_weight * (2.0 - target)
+
+            # Plafonnement
+            for team in self.teams_:
+                att[team]  = min(max(att[team],  0.3), 2.2)
+                deff[team] = min(max(deff[team], 0.2), 1.8)
 
             if iteration % 10 == 0:
                 logger.debug(f"  Itération {iteration}/{self.n_iter}")
@@ -383,8 +556,8 @@ if __name__ == "__main__":
     from src.data.collect import load_results, load_wc2026_fixtures
 
     print("=" * 65)
-    print("  World Cup 2026 — Modèle de Poisson v3")
-    print("  (données 2018+, qualif WC 3.0, classement FIFA)")
+    print("  World Cup 2026 — Modèle de Poisson v4")
+    print("  (UEFA boosté, bookmakers, confédérations, expérience WC)")
     print("=" * 65)
 
     results  = load_results(min_year=2018)
