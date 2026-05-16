@@ -222,12 +222,12 @@ CONFEDERATION = {
 }
 
 CONFEDERATION_BOOST = {
-    "UEFA":     1.08,   # historique dominant
-    "CONMEBOL": 1.06,   # Argentine/Brésil très forts
-    "CONCACAF": 0.97,   # compétitifs mais pas de victoires WC
-    "CAF":      0.95,   # jamais vainqueur WC
-    "AFC":      0.94,   # jamais vainqueur WC
-    "OFC":      0.90,   # niveau plus faible
+    "UEFA":     1.12,   # 12 victoires WC — très largement dominant
+    "CONMEBOL": 1.09,   # 9 victoires WC — Argentine/Brésil/Uruguay
+    "CONCACAF": 0.95,   # compétitifs mais jamais vainqueurs
+    "CAF":      0.91,   # jamais vainqueur WC malgré des performances récentes
+    "AFC":      0.90,   # jamais vainqueur WC
+    "OFC":      0.86,   # niveau structurellement plus faible
 }
 
 # ============================================================
@@ -235,31 +235,60 @@ CONFEDERATION_BOOST = {
 # Quarts de finale ou mieux en 2018 ET/OU 2022
 # ============================================================
 
-WC_EXPERIENCE_BONUS = {
-    # Finalistes récents
-    "France":      1.08,  # Final 2018, QF 2022
-    "Argentina":   1.08,  # Champion 2022
-    "Croatia":     1.05,  # Final 2018, SF 2022
-    # Demi-finalistes
-    "England":     1.05,  # SF 2018, QF 2022
-    "Belgium":     1.04,  # 3e 2018
-    "Morocco":     1.04,  # SF 2022 (historique)
-    # Quart-de-finalistes
-    "Brazil":      1.04,  # QF 2018, QF 2022
-    "Uruguay":     1.03,  # QF 2018
-    "Sweden":      1.02,  # QF 2018
-    "Russia":      1.02,  # QF 2018
-    "Japan":       1.03,  # R16 2022 (pénaltys)
-    "Netherlands": 1.03,  # QF 2022
-    "Portugal":    1.03,  # QF 2022
-    "Spain":       1.03,  # QF 2022
-    "Switzerland": 1.02,  # R16 2018, QF 2022
-    "Australia":   1.02,  # R16 2022
-    "South Korea": 1.02,  # R16 2022
-    "United States": 1.01, # R16 2022
-    "Poland":      1.01,  # R16 2022
-    "Senegal":     1.02,  # R16 2022
+# ============================================================
+# EXPÉRIENCE WC — Système de points sur 2018 ET 2022
+# Points : Champion=10, Final=7, SF=5, QF=3, R16=1, Groupes=0
+# Bonus = 1.0 + (points_2018 + points_2022) / 100
+# → Seules les équipes performantes SUR LES DEUX tournois
+#   obtiennent un bonus significatif
+# ============================================================
+
+WC_PERFORMANCE = {
+    # (points_2018, points_2022)
+    "France":        (7, 3),   # Final 2018, QF 2022      → +10%
+    "Argentina":     (1, 10),  # R16 2018, Champion 2022  → +11%
+    "Croatia":       (7, 5),   # Final 2018, SF 2022      → +12%
+    "England":       (5, 3),   # SF 2018, QF 2022         → +8%
+    "Belgium":       (5, 0),   # 3e 2018, groupes 2022    → +5%
+    "Brazil":        (3, 3),   # QF 2018, QF 2022         → +6%
+    "Uruguay":       (3, 0),   # QF 2018, groupes 2022    → +3%
+    "Sweden":        (3, 0),   # QF 2018, non qualifiée   → +3%
+    "Netherlands":   (0, 3),   # absente 2018, QF 2022    → +3%
+    "Portugal":      (0, 3),   # R16 2018, QF 2022        → +4%
+    "Spain":         (1, 3),   # R16 2018, QF 2022        → +4%
+    "Switzerland":   (1, 3),   # R16 2018, QF 2022        → +4%
+    "Morocco":       (0, 5),   # groupes 2018, SF 2022    → +5% (une seule WC)
+    "Japan":         (1, 1),   # R16 2018, R16 2022       → +2%
+    "South Korea":   (1, 1),   # R16 2018, R16 2022       → +2%
+    "Australia":     (0, 1),   # absente 2018, R16 2022   → +1%
+    "Senegal":       (0, 1),   # absente 2018, R16 2022   → +1%
+    "United States": (0, 1),   # absente 2018, R16 2022   → +1%
+    "Germany":       (0, 0),   # groupes 2018, groupes 2022 → +0%
+    "Denmark":       (0, 1),   # R16 2018, R16 2022       → +2%
+    "Poland":        (0, 1),   # groupes 2018, R16 2022   → +1%
+    "Ecuador":       (0, 0),
+    "Mexico":        (1, 0),   # R16 2018, groupes 2022   → +1%
+    "Colombia":      (0, 0),
+    "Norway":        (0, 0),   # non qualifiée les 2      → +0%
+    "Austria":       (0, 0),
+    "Turkey":        (0, 0),
+    "Canada":        (0, 0),   # première qualification depuis 1986
+    "Iran":          (0, 0),
+    "Tunisia":       (0, 0),
+    "Saudi Arabia":  (0, 0),
 }
+
+def get_wc_experience_bonus(team: str) -> float:
+    """
+    Calcule le bonus d'expérience WC sur 2018 + 2022.
+    Favorise les équipes régulièrement performantes sur les deux tournois.
+    """
+    pts = WC_PERFORMANCE.get(team, (0, 0))
+    total = pts[0] + pts[1]
+    return 1.0 + total / 100.0
+
+WC_EXPERIENCE_BONUS = {team: get_wc_experience_bonus(team) 
+                        for team in WC_PERFORMANCE}
 
 def get_fifa_score(team: str) -> float:
     """
@@ -397,9 +426,9 @@ class PoissonPredictor:
             conf      = CONFEDERATION.get(t, "other")
             conf_b    = CONFEDERATION_BOOST.get(conf, 1.0)
             # Expérience WC
-            exp_b     = WC_EXPERIENCE_BONUS.get(t, 1.0)
+            exp_b     = get_wc_experience_bonus(t)
             # Force initiale = moyenne pondérée FIFA + bookmakers
-            base      = 0.4 * fifa_s + 0.6 * book_s
+            base      = 0.25 * fifa_s + 0.75 * book_s  # bookmakers encore plus valorisés
             att[t]    = base * conf_b * exp_b
             deff[t]   = (2.0 - base) * conf_b
 
@@ -455,7 +484,7 @@ class PoissonPredictor:
                 book_prob = BOOKMAKER_PROBS.get(team, 0.005)
                 book_s    = 0.5 + min(book_prob / 0.18, 1.0)
                 conf_b    = CONFEDERATION_BOOST.get(CONFEDERATION.get(team, "other"), 1.0)
-                target    = (0.4 * fifa_s + 0.6 * book_s) * conf_b
+                target    = (0.25 * fifa_s + 0.75 * book_s) * conf_b  # bookmakers très valorisés
                 att[team]  = (1 - corr_weight) * att[team]  + corr_weight * target
                 deff[team] = (1 - corr_weight) * deff[team] + corr_weight * (2.0 - target)
 
