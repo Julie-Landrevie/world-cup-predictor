@@ -52,6 +52,72 @@ WC2026_GROUPS = {
 }
 
 # ============================================================
+# COMBINAISONS FIFA — 3es qualifiés → matchups officiels
+# Source: Wikipedia / Annexe C règlement FIFA WC 2026
+# Format: frozenset(8 groupes) → {match_key: groupe_3e}
+# match_key = '1A','1B','1D','1E','1G','1I','1K','1L'
+# (1C, 1F, 1H, 1J affrontent toujours des 2es)
+# ============================================================
+
+def _make_combo(groups_str, a, b, d, e, g, i, k, l):
+    """Crée une entrée de combinaison FIFA."""
+    return (frozenset(groups_str), {"1A":a,"1B":b,"1D":d,"1E":e,"1G":g,"1I":i,"1K":k,"1L":l})
+
+_RAW = [
+    _make_combo("EFGHIJKL","3E","3J","3I","3F","3H","3G","3L","3K"),
+    _make_combo("DFGHIJKL","3H","3G","3I","3D","3J","3F","3L","3K"),
+    _make_combo("DEGHIJKL","3E","3J","3I","3D","3H","3G","3L","3K"),
+    _make_combo("DEFHIJKL","3E","3J","3I","3D","3H","3F","3L","3K"),
+    _make_combo("DEFGIJKL","3E","3G","3I","3D","3J","3F","3L","3K"),
+    _make_combo("DEFGHJKL","3E","3G","3J","3D","3H","3F","3L","3K"),
+    _make_combo("DEFGHIKL","3E","3G","3I","3D","3H","3F","3L","3K"),
+    _make_combo("DEFGHIJL","3E","3G","3J","3D","3H","3F","3L","3I"),
+    _make_combo("DEFGHIJK","3E","3G","3J","3D","3H","3F","3I","3K"),
+    _make_combo("CFGHIJKL","3H","3G","3I","3C","3J","3F","3L","3K"),
+    _make_combo("CEGHIJKL","3E","3J","3I","3C","3H","3G","3L","3K"),
+    _make_combo("CEFHIJKL","3E","3J","3I","3C","3H","3F","3L","3K"),
+    _make_combo("CEFGIJKL","3E","3G","3I","3C","3J","3F","3L","3K"),
+    _make_combo("CEFGHJKL","3E","3G","3J","3C","3H","3F","3L","3K"),
+    _make_combo("CEFGHIKL","3E","3G","3I","3C","3H","3F","3L","3K"),
+    _make_combo("CEFGHIJL","3E","3G","3J","3C","3H","3F","3L","3I"),
+    _make_combo("CEFGHIJK","3E","3G","3J","3C","3H","3F","3I","3K"),
+    _make_combo("CDGHIJKL","3H","3G","3I","3C","3J","3D","3L","3K"),
+    _make_combo("CDFHIJKL","3C","3J","3I","3D","3H","3F","3L","3K"),
+    _make_combo("CDFGIJKL","3C","3G","3I","3D","3J","3F","3L","3K"),
+    _make_combo("CDFGHJKL","3C","3G","3J","3D","3H","3F","3L","3K"),
+    _make_combo("CDFGHIKL","3C","3G","3I","3D","3H","3F","3L","3K"),
+    _make_combo("CDFGHIJL","3C","3G","3J","3D","3H","3F","3L","3I"),
+    _make_combo("CDFGHIJK","3C","3G","3J","3D","3H","3F","3I","3K"),
+    _make_combo("CDEHIJKL","3E","3J","3I","3C","3H","3D","3L","3K"),
+    _make_combo("CDEGIJKL","3E","3G","3I","3C","3J","3D","3L","3K"),
+    _make_combo("CDEGHIJKL"[:-1],"3E","3G","3J","3C","3H","3D","3L","3K"),
+    _make_combo("CDEGHIKL","3E","3G","3I","3C","3H","3D","3L","3K"),
+    _make_combo("CDEGHIJL","3E","3G","3J","3C","3H","3D","3L","3I"),
+    _make_combo("CDEGHIJK","3E","3G","3J","3C","3H","3D","3I","3K"),
+    _make_combo("CDEFIJKL","3C","3J","3E","3D","3I","3F","3L","3K"),
+    _make_combo("CDEFHJKL","3C","3J","3E","3D","3H","3F","3L","3K"),
+    _make_combo("CDEFHIKL","3C","3E","3I","3D","3H","3F","3L","3K"),
+    _make_combo("CDEFHIJL","3C","3J","3E","3D","3H","3F","3L","3I"),
+    _make_combo("CDEFHIJK","3C","3J","3E","3D","3H","3F","3I","3K"),
+    _make_combo("CDEFGJKL","3C","3G","3E","3D","3J","3F","3L","3K"),
+    _make_combo("CDEFGIKL","3C","3G","3E","3D","3I","3F","3L","3K"),
+    _make_combo("CDEFGIJL","3C","3G","3E","3D","3J","3F","3L","3I"),
+    _make_combo("CDEFGIJK","3C","3G","3E","3D","3J","3F","3I","3K"),
+    _make_combo("CDEFGHKL","3C","3G","3E","3D","3H","3F","3L","3K"),
+    _make_combo("CDEFGHJL","3C","3G","3J","3D","3H","3F","3L","3E"),
+    _make_combo("CDEFGHJK","3C","3G","3J","3D","3H","3F","3E","3K"),
+    _make_combo("CDEFGHIL","3C","3G","3E","3D","3H","3F","3L","3I"),
+    _make_combo("CDEFGHIK","3C","3G","3E","3D","3H","3F","3I","3K"),
+    _make_combo("CDEFGHIJ","3C","3G","3J","3D","3H","3F","3E","3I"),
+    _make_combo("BFGHIJKL","3H","3J","3B","3F","3I","3G","3L","3K"),
+    _make_combo("BEGHIJKL","3E","3J","3I","3B","3H","3G","3L","3K"),
+    _make_combo("BEFHIJKL","3E","3J","3B","3F","3I","3H","3L","3K"),
+    _make_combo("BEFGIJKL","3E","3J","3B","3F","3I","3G","3L","3K"),
+    _make_combo("BEFGHJKL","3E","3J","3B","3F","3H","3G","3L","3K"),
+]
+FIFA_THIRD_COMBINATIONS = dict(_RAW)
+
+# ============================================================
 # STRUCTURES DE DONNÉES
 # ============================================================
 
@@ -309,21 +375,29 @@ class TournamentSimulator:
             group_results[group_name] = ranked
             thirds.append((group_name, ranked[2]))
 
-        # ── Sélection des 8 meilleurs 3es ─────────────────────
-        # FIFA sélectionne les 8 meilleurs 3es sur pts/gd/gf
-        # On utilise les standings simulés pour trier correctement
-        # (les standings sont trackés dans _simulate_group)
+        # ── Sélection des 8 meilleurs 3es + combinaison FIFA ─
+        # On trie les 12 3es par force et on garde les 8 meilleurs
         all_thirds_ranked = self._get_best_thirds(group_results)
-        best_8_thirds = all_thirds_ranked[:8]  # les 8 meilleurs
-        # Associer chaque 3e à son groupe d'origine
-        thirds_by_group = {g: team for g, team in best_8_thirds}
+        best_8 = all_thirds_ranked[:8]
+        # Les groupes des 8 meilleurs 3es qualifiés
+        qualified_third_groups = frozenset(g for g, _ in best_8)
+        thirds_by_group = {g: team for g, team in best_8}
 
-        def get_third(group: str) -> str:
-            """Retourne le meilleur 3e disponible pour un groupe donné."""
-            if group in thirds_by_group:
-                return thirds_by_group[group]
-            # Fallback : 3e du groupe demandé
-            return group_results[group][2]
+        # Lookup de la combinaison officielle FIFA
+        # Format: {frozenset(groupes): {1er_groupe: groupe_du_3e_adverse}}
+        combo = FIFA_THIRD_COMBINATIONS.get(qualified_third_groups, None)
+
+        def get_third(match_key: str) -> str:
+            """
+            Retourne le 3e adverse pour un 1er de groupe donné.
+            match_key: '1A', '1B', '1D', '1E', '1G', '1I', '1K', '1L'
+            """
+            if combo and match_key in combo:
+                third_group = combo[match_key]  # ex: '3E' → groupe E
+                g = third_group[1]              # extraire 'E'
+                return thirds_by_group.get(g, group_results[g][2])
+            # Fallback si combinaison non trouvée
+            return all_thirds_ranked[0][1] if all_thirds_ranked else "Unknown"
 
         # ── Round of 32 — Bracket officiel FIFA 2026 ──────────
         # Source : wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
@@ -345,40 +419,39 @@ class TournamentSimulator:
 
         # Pour la simulation, on affecte les 3es aux matchs selon leur groupe d'origine
         # Combinaison simplifiée : les 8 meilleurs 3es = 3A, 3B, 3C, 3D, 3E, 3F, 3G, 3H
-        t3 = {g: group_results[g][2] for g in "ABCDEFGHIJKL"}
-
+        # Bracket officiel FIFA avec vraies combinaisons de 3es
         r32_matchups = [
-            # M73
+            # M73: 2A vs 2B (fixes — pas de 3es)
             (group_results["A"][1], group_results["B"][1]),
-            # M74: 1E vs 3e (ici on prend 3F comme approx)
-            (group_results["E"][0], t3["F"]),
-            # M75: 1F vs 2C
+            # M74: 1E vs 3e (groupe A/B/C/D/F selon combinaison)
+            (group_results["E"][0], get_third("1E")),
+            # M75: 1F vs 2C (fixe)
             (group_results["F"][0], group_results["C"][1]),
-            # M76: 1C vs 2F
+            # M76: 1C vs 2F (fixe)
             (group_results["C"][0], group_results["F"][1]),
-            # M77: 1I vs 3e
-            (group_results["I"][0], t3["D"]),
-            # M78: 2E vs 2I
+            # M77: 1I vs 3e (groupe C/D/F/G/H selon combinaison)
+            (group_results["I"][0], get_third("1I")),
+            # M78: 2E vs 2I (fixe)
             (group_results["E"][1], group_results["I"][1]),
-            # M79: 1A vs 3e
-            (group_results["A"][0], t3["C"]),
-            # M80: 1L vs 3e
-            (group_results["L"][0], t3["E"]),
-            # M81: 1D vs 3e
-            (group_results["D"][0], t3["B"]),
-            # M82: 1G vs 3e
-            (group_results["G"][0], t3["A"]),
-            # M83: 2K vs 2L
+            # M79: 1A vs 3e (groupe C/E/F/H/I selon combinaison)
+            (group_results["A"][0], get_third("1A")),
+            # M80: 1L vs 3e (groupe E/H/I/J/K selon combinaison)
+            (group_results["L"][0], get_third("1L")),
+            # M81: 1D vs 3e (groupe B/E/F/I/J selon combinaison)
+            (group_results["D"][0], get_third("1D")),
+            # M82: 1G vs 3e (groupe A/E/H/I/J selon combinaison)
+            (group_results["G"][0], get_third("1G")),
+            # M83: 2K vs 2L (fixe)
             (group_results["K"][1], group_results["L"][1]),
-            # M84: 1H vs 2J
+            # M84: 1H vs 2J (fixe)
             (group_results["H"][0], group_results["J"][1]),
-            # M85: 1B vs 3e
-            (group_results["B"][0], t3["G"]),
-            # M86: 1J vs 2H
+            # M85: 1B vs 3e (groupe E/F/G/I/J selon combinaison)
+            (group_results["B"][0], get_third("1B")),
+            # M86: 1J vs 2H (fixe)
             (group_results["J"][0], group_results["H"][1]),
-            # M87: 1K vs 3e
-            (group_results["K"][0], t3["H"]),
-            # M88: 2D vs 2G
+            # M87: 1K vs 3e (groupe D/E/I/J/L selon combinaison)
+            (group_results["K"][0], get_third("1K")),
+            # M88: 2D vs 2G (fixe)
             (group_results["D"][1], group_results["G"][1]),
         ]
 

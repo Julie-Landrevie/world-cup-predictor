@@ -252,17 +252,34 @@ class PoissonPredictor:
                 logger.debug(f"  Itération {iteration}/{self.n_iter}")
 
         # ── Correction finale bookmakers ──────────────────────
+        # On tire FORTEMENT la défense vers le niveau bookmaker
+        # pour éviter les équipes avec def ultra-basse (Maroc, Angleterre, Équateur)
         logger.info("  Correction finale bookmakers...")
         for i, t in enumerate(teams):
-            book_prob  = BOOKMAKER_PROBS.get(t, 0.004)
-            book_s     = 0.5 + min(book_prob / 0.174, 1.0)
-            conf_b     = CONFEDERATION_BOOST.get(CONFEDERATION.get(t, "other"), 1.0)
-            exp_b      = get_wc_experience_bonus(t)
-            target_att = book_s * conf_b * exp_b
-            att[i]     = 0.70 * att[i]  + 0.30 * target_att
-            deff[i]    = 0.85 * deff[i] + 0.15 * (deff[i] * 0.85 + (1.0 - book_s * 0.3) * 0.15)
-            att[i]     = min(max(att[i],  0.25), 2.2)
-            deff[i]    = min(max(deff[i], 0.15), 1.8)
+            book_prob   = BOOKMAKER_PROBS.get(t, 0.004)
+            book_s      = 0.5 + min(book_prob / 0.174, 1.0)
+            conf_b      = CONFEDERATION_BOOST.get(CONFEDERATION.get(t, "other"), 1.0)
+            exp_b       = get_wc_experience_bonus(t)
+
+            # Attaque : 70% statistique + 30% bookmakers
+            target_att  = book_s * conf_b * exp_b
+            att[i]      = 0.70 * att[i] + 0.30 * target_att
+
+            # Défense : correction forte — la défense doit refléter
+            # la qualité globale de l'équipe (bookmakers)
+            # Une équipe faible (book_s bas) ne peut pas avoir une défense invincible
+            # Cible défense : inversement proportionnelle à book_s
+            # book_s=1.5 (France) → target_def=0.40 (bonne défense)
+            # book_s=0.5 (Haiti)  → target_def=1.20 (mauvaise défense)
+            target_deff = 1.0 - (book_s - 1.0) * 0.60  # linéaire entre 0.40 et 1.20
+            target_deff = target_deff * conf_b
+
+            # Mélange 50% statistique + 50% bookmakers pour la défense
+            deff[i]     = 0.50 * deff[i] + 0.50 * target_deff
+
+            # Plafonnement
+            att[i]      = min(max(att[i],  0.25), 2.2)
+            deff[i]     = min(max(deff[i], 0.20), 1.8)
 
         # Stockage
         self.att_    = {t: att[i]  for i, t in enumerate(teams)}
