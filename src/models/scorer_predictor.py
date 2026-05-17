@@ -64,6 +64,7 @@ EXCLUDED_PLAYERS = {
     "Marcus Rashford",     # non convoqué Angleterre (Tuchel)
     "Neymar",              # blessures chroniques, non convoqué Brésil
     "Hugo Ekitike",        # blessé tendon Achille, remplacé par Mateta
+    "Diogo Jota",          # décédé le 3 juillet 2025 — RIP 🙏
 
     # ── Doublons dataset (variantes orthographiques) ──────────
     "Julián Alvarez",      # doublon de "Julián Álvarez" (sans accent)
