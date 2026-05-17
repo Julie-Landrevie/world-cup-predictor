@@ -30,69 +30,129 @@ from pathlib import Path
 # ============================================================
 # JOUEURS EXCLUS — retraités ou très probablement absents
 # ============================================================
+# ============================================================
+# JOUEURS EXCLUS — absents des listes officielles WC 2026
+# Sources : listes officielles publiées mai 2026
+# ============================================================
 EXCLUDED_PLAYERS = {
-    "Karim Benzema",       # retraité international
+    # ── Retraités internationaux ──────────────────────────────
+    "Karim Benzema",       # retraité
+    "Antoine Griezmann",   # retraité international (annonce mai 2026)
     "Angel Di María",      # retraité international
-    "Ángel Di María",      # variante
+    "Ángel Di María",      # variante accent
     "Olivier Giroud",      # retraité international
-    "Raheem Sterling",     # probable absence sélection
-    "Neymar",              # blessures chroniques, incertain
-    "Marcus Rashford",     # forme en berne, incertain
     "Álvaro Morata",       # retraité international Euro 2024
     "Memphis Depay",       # retraité international
     "Ivan Perišić",        # retraité international
     "Edin Džeko",          # retraité international
     "Islam Slimani",       # retraité international
     "Gareth Bale",         # retraité
-    "Robert Lewandowski",  # Pologne non qualifiée WC 2026
-    "Marko Arnautović",    # retraité international autrichien
-    "Gareth Bale",         # retraité
+    "Marko Arnautović",    # retraité international
+    "Sergio Agüero",       # retraité
+    "Luis Suárez",         # retraité international
+    "Giorgio Chiellini",   # retraité
+    "Thomas Müller",       # retraité international
+    "Manuel Neuer",        # retraité international
+
+    # ── Non qualifiés / pays absents ──────────────────────────
     "Robert Lewandowski",  # Pologne non qualifiée
-    "Romelu Lukaku",       # Belgique non qualifiée WC 2026
-    "Mohamed Salah",       # Égypte non qualifiée (phase de groupes seulement)
+    "Mohamed Salah",       # Égypte — groupe G, présent mais peu de buts attendus
+    "Sadio Mané",          # Sénégal présent — garder !
+
+    # ── Blessés / non convoqués ───────────────────────────────
+    "Raheem Sterling",     # non convoqué Angleterre
+    "Marcus Rashford",     # non convoqué Angleterre (Tuchel)
+    "Neymar",              # blessures chroniques, non convoqué Brésil
+    "Hugo Ekitike",        # blessé tendon Achille, remplacé par Mateta
+
+    # ── Doublons dataset (variantes orthographiques) ──────────
+    "Julián Alvarez",      # doublon de "Julián Álvarez" (sans accent)
+    "Julian Alvarez",      # variante sans accent
 }
+
+# ── Joueurs présents malgré doutes (à conserver) ─────────────
+# Sadio Mané : convoqué Sénégal ✅
+# Cristiano Ronaldo : convoqué Portugal ✅ (liste annoncée le 19 mai)
+# Romelu Lukaku : convoqué Belgique ✅
+# Harry Kane : convoqué Angleterre ✅
 
 # ============================================================
 # AJUSTEMENTS MANUELS — stars dont les données sont incomplètes
 # Ces multiplicateurs corrigent les sous-estimations du dataset
 # ============================================================
+# ============================================================
+# AJUSTEMENTS MANUELS — basés sur les listes officielles WC 2026
+# et la forme récente des joueurs (mai 2026)
+# ============================================================
 PLAYER_BOOST = {
-    # France
-    "Kylian Mbappé":      1.10,  # capitaine, forme excellente
-    "Antoine Griezmann":  1.05,
-    # Espagne
-    "Ferran Torres":      0.95,  # souvent remplaçant
-    "Álvaro Morata":      0.90,  # retraité ? à vérifier
-    "Mikel Oyarzabal":    1.05,
-    "Dani Olmo":          1.10,  # en grande forme
-    "Lamine Yamal":       1.20,  # nouvelle star, sous-représenté dataset
-    "Nico Williams":      1.15,  # idem
-    # Argentine
-    "Lionel Messi":       1.00,  # dataset assez complet
-    "Lautaro Martínez":   1.05,
-    "Julián Álvarez":     1.10,  # en grande forme
-    # Angleterre
-    "Harry Kane":         1.05,
-    "Bukayo Saka":        1.10,
-    "Phil Foden":         1.10,  # sous-représenté
-    "Cole Palmer":        1.15,  # nouvelle star
-    # Portugal
-    "Cristiano Ronaldo":  0.85,  # 40 ans, moins décisif
-    "Bruno Fernandes":    1.05,
-    "Gonçalo Ramos":      1.15,  # en grande forme
-    "Rafael Leão":        1.10,
-    # Brésil
-    "Vinícius Júnior":    1.20,  # Ballon d'Or niveau, sous-représenté
-    "Raphinha":           1.10,
-    "Rodrygo":            1.10,
-    # Allemagne
-    "Kai Havertz":        1.10,
-    "Florian Wirtz":      1.20,  # nouvelle star, peu de matchs dataset
-    "Jamal Musiala":      1.15,
-    # Pays-Bas
-    "Memphis Depay":      0.90,
-    "Cody Gakpo":         1.15,
-    "Xavi Simons":        1.10,
+    # ── France (liste Deschamps 14 mai 2026) ─────────────────
+    "Kylian Mbappé":        1.15,  # capitaine, stars des Bleus
+    "Marcus Thuram":        1.10,  # titulaire indiscutable, prolifique à l'Inter
+    "Ousmane Dembélé":      1.05,  # bon début de saison PSG
+    "Bradley Barcola":      1.10,  # nouvelle star, sous-représenté dataset
+    "Michael Olise":        1.10,  # en grande forme Bayern
+    "Rayan Cherki":         1.05,  # nouvelle star, peu de capes
+    "Maghnes Akliouche":    1.05,  # surprenant mais présent
+    "Désiré Doué":          1.00,
+    "Jean-Philippe Mateta": 1.05,  # remplace Ekitike blessé
+
+    # ── Espagne (liste attendue ~25 mai) ─────────────────────
+    "Ferran Torres":        0.90,  # souvent remplaçant
+    "Mikel Oyarzabal":      1.05,
+    "Dani Olmo":            1.15,  # en très grande forme
+    "Lamine Yamal":         1.25,  # star mondiale, très sous-représenté dataset
+    "Nico Williams":        1.15,  # idem, peu de données
+    "Álvaro Morata":        0.00,  # retraité — sera filtré par EXCLUDED
+    "Mikel Merino":         1.05,
+
+    # ── Argentine (liste préliminaire 55 joueurs, 11 mai) ────
+    "Lionel Messi":         1.05,  # 6e Coupe du monde
+    "Lautaro Martínez":     1.10,  # grand buteur Serie A
+    "Julián Álvarez":       1.15,  # en très grande forme Atlético
+    "Alejandro Garnacho":   1.10,  # nouvelle star, peu de données
+
+    # ── Angleterre (liste Tuchel attendue 22 mai) ────────────
+    "Harry Kane":           1.05,  # capitaine et buteur numéro 1
+    "Bukayo Saka":          1.10,  # titulaire indiscutable
+    "Phil Foden":           1.10,  # sous-représenté dataset
+    "Cole Palmer":          1.20,  # révélation saison, peu de capes
+    "Jude Bellingham":      1.15,  # stars mais peu de buts internationaux
+
+    # ── Portugal (liste attendue 19 mai) ─────────────────────
+    "Cristiano Ronaldo":    0.80,  # 41 ans, rôle réduit
+    "Bruno Fernandes":      1.10,  # capitaine, très prolifique
+    "Gonçalo Ramos":        1.20,  # meilleur buteur équipe nationale récent
+    "Rafael Leão":          1.10,
+    "Pedro Neto":           1.05,
+
+    # ── Brésil (liste attendue 18 mai) ───────────────────────
+    "Vinícius Júnior":      1.25,  # meilleur joueur monde, sous-représenté
+    "Raphinha":             1.10,  # capitaine, en grande forme Barça
+    "Rodrygo":              1.10,
+    "Richarlison":          1.00,
+    "Endrick":              1.10,  # nouvelle star, peu de capes
+
+    # ── Allemagne ─────────────────────────────────────────────
+    "Kai Havertz":          1.10,
+    "Florian Wirtz":        1.25,  # meilleur joueur Bundesliga, peu de données
+    "Jamal Musiala":        1.15,  # star allemande
+    "Leroy Sané":           1.00,
+
+    # ── Pays-Bas ──────────────────────────────────────────────
+    "Cody Gakpo":           1.15,
+    "Xavi Simons":          1.10,
+    "Donyell Malen":        1.05,
+
+    # ── Norvège ───────────────────────────────────────────────
+    "Erling Haaland":       1.10,  # meilleur buteur monde
+    "Alexander Sørloth":    1.05,
+
+    # ── Autres favoris ────────────────────────────────────────
+    "Pedri":                1.10,  # Espagne, milieu créateur
+    "Rodri":                1.05,  # Espagne, milieu défensif
+    "Romelu Lukaku":        1.05,  # Belgique, toujours présent
+    "Luis Díaz":            1.10,  # Colombia, très en forme Liverpool
+    "Federico Valverde":    1.05,  # Argentine, milieu
 }
 
 # ============================================================
