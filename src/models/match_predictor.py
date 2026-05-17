@@ -56,14 +56,14 @@ BOOKMAKER_PROBS = {
     "United States": 0.016, "Belgium": 0.015, "Colombia": 0.014,
     "Switzerland": 0.012, "Croatia": 0.012, "Norway": 0.010,
     "Mexico": 0.009, "Japan": 0.008, "South Korea": 0.007,
-    "Australia": 0.006,  # ← 0.6% — faible, sera correctement pondéré
-    "Turkey": 0.006, "Uruguay": 0.008, "Ecuador": 0.006,
+    "Australia": 0.004,  # AFC — réduit à 0.4% pour corriger surestimation
+    "Turkey": 0.006, "Uruguay": 0.012, "Ecuador": 0.006,
     "Senegal": 0.005, "Sweden": 0.005, "Austria": 0.004,
     "Canada": 0.004, "Ghana": 0.003, "Ivory Coast": 0.003,
     "Tunisia": 0.002, "Saudi Arabia": 0.002, "South Africa": 0.002,
     "Scotland": 0.002, "Czech Republic": 0.003,
     "Bosnia and Herzegovina": 0.002, "Paraguay": 0.002,
-    "Algeria": 0.002, "Iran": 0.001, "Egypt": 0.001,
+    "Algeria": 0.005, "Iran": 0.001, "Egypt": 0.001,
     "DR Congo": 0.001, "New Zealand": 0.001, "Jordan": 0.0005,
     "Iraq": 0.0005, "Uzbekistan": 0.001, "Qatar": 0.001,
     "Haiti": 0.0002, "Panama": 0.0005, "Cape Verde": 0.001,
@@ -252,34 +252,40 @@ class PoissonPredictor:
                 logger.debug(f"  Itération {iteration}/{self.n_iter}")
 
         # ── Correction finale bookmakers ──────────────────────
-        # On tire FORTEMENT la défense vers le niveau bookmaker
-        # pour éviter les équipes avec def ultra-basse (Maroc, Angleterre, Équateur)
         logger.info("  Correction finale bookmakers...")
         for i, t in enumerate(teams):
             book_prob   = BOOKMAKER_PROBS.get(t, 0.004)
             book_s      = 0.5 + min(book_prob / 0.174, 1.0)
             conf_b      = CONFEDERATION_BOOST.get(CONFEDERATION.get(t, "other"), 1.0)
             exp_b       = get_wc_experience_bonus(t)
+            conf        = CONFEDERATION.get(t, "other")
 
             # Attaque : 70% statistique + 30% bookmakers
             target_att  = book_s * conf_b * exp_b
             att[i]      = 0.70 * att[i] + 0.30 * target_att
 
-            # Défense : correction forte — la défense doit refléter
-            # la qualité globale de l'équipe (bookmakers)
-            # Une équipe faible (book_s bas) ne peut pas avoir une défense invincible
-            # Cible défense : inversement proportionnelle à book_s
-            # book_s=1.5 (France) → target_def=0.40 (bonne défense)
-            # book_s=0.5 (Haiti)  → target_def=1.20 (mauvaise défense)
-            target_deff = 1.0 - (book_s - 1.0) * 0.60  # linéaire entre 0.40 et 1.20
+            # Défense : cible inversement proportionnelle à book_s
+            # book_s=1.5 (France)  → target_def ≈ 0.40 (excellente)
+            # book_s=1.0 (neutre)  → target_def ≈ 0.70 (moyenne)
+            # book_s=0.5 (faibles) → target_def ≈ 1.00 (poreuse)
+            target_deff = 1.0 - (book_s - 1.0) * 0.60
             target_deff = target_deff * conf_b
 
-            # Mélange 50% statistique + 50% bookmakers pour la défense
-            deff[i]     = 0.50 * deff[i] + 0.50 * target_deff
+            # Poids de correction défense selon confédération :
+            # AFC/OFC : leurs stats sont gonflées par adversaires faibles → 70% bookmakers
+            # UEFA/CONMEBOL : stats plus fiables → 50% bookmakers
+            if conf in ("AFC", "OFC"):
+                deff_book_w = 0.70  # correction plus forte pour AFC/OFC
+            elif conf == "CAF":
+                deff_book_w = 0.60
+            else:
+                deff_book_w = 0.50
+
+            deff[i] = (1 - deff_book_w) * deff[i] + deff_book_w * target_deff
 
             # Plafonnement
-            att[i]      = min(max(att[i],  0.25), 2.2)
-            deff[i]     = min(max(deff[i], 0.20), 1.8)
+            att[i]  = min(max(att[i],  0.25), 2.2)
+            deff[i] = min(max(deff[i], 0.20), 1.8)
 
         # Stockage
         self.att_    = {t: att[i]  for i, t in enumerate(teams)}
