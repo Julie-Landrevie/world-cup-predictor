@@ -509,10 +509,41 @@ class PoissonPredictor:
             if iteration % 10 == 0:
                 logger.debug(f"  Itération {iteration}/{self.n_iter}")
 
+        # ── Correction finale forte — bookmakers comme ancrage ──
+        # Après toutes les itérations, on tire fortement les forces
+        # vers ce que les marchés de prédiction anticipent.
+        # Ceci corrige les biais résiduels du modèle statistique
+        # (ex: Norvège/Japon surestimés, Espagne/Argentine sous-estimés)
+        logger.info("  Application de la correction finale bookmakers...")
+        for team in self.teams_:
+            book_prob = BOOKMAKER_PROBS.get(team, 0.004)
+            # Score bookmaker normalisé sur France (17.4% = référence)
+            book_s    = 0.5 + min(book_prob / 0.174, 1.0)
+            conf_b    = CONFEDERATION_BOOST.get(CONFEDERATION.get(team, "other"), 1.0)
+            exp_b     = get_wc_experience_bonus(team)
+            # Force cible = bookmaker × confédération × expérience
+            target_att  = book_s * conf_b * exp_b
+            # Défense : correction légère seulement
+            target_deff = deff[team] * 0.85 + (1.0 - book_s * 0.3) * 0.15
+            # Mélange 70% statistique / 30% bookmakers pour l'attaque
+            att[team]  = 0.70 * att[team]  + 0.30 * target_att
+            deff[team] = target_deff
+            # Plafonnement
+            att[team]  = min(max(att[team],  0.25), 2.2)
+            deff[team] = min(max(deff[team], 0.15), 1.8)
+
         self.att_    = att
         self.def_    = deff
         self.fitted_ = True
-        logger.success(f"✅ Modèle v3 entraîné — mu={self.mu_:.3f}")
+        logger.success(f"✅ Modèle entraîné — mu={self.mu_:.3f}")
+
+        # Log des forces des favoris pour vérification
+        favorites = ["France", "Spain", "England", "Argentina", "Brazil",
+                     "Germany", "Portugal", "Morocco", "Japan", "Norway"]
+        logger.debug("  Forces finales des favoris :")
+        for t in favorites:
+            if t in att:
+                logger.debug(f"    {t:15} att={att[t]:.3f} def={deff[t]:.3f}")
         return self
 
     def predict_score(self, home: str, away: str, neutral: bool = True, max_goals: int = 8) -> dict:

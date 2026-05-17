@@ -372,33 +372,53 @@ class TournamentSimulator:
             (group_results["D"][1], group_results["G"][1]),
         ]
 
-        # ── Huitièmes ─────────────────────────────────────────
-        qf_teams = []
+        # ── Round of 32 — résultats ───────────────────────────
+        # On simule les 16 matchs dans l'ordre M73→M88
+        r32_winners = []
         for home, away in r32_matchups:
             winner = self._simulate_match_ko(home, away, stage="r32")
-            qf_teams.append(winner)
+            r32_winners.append(winner)
 
-        # ── Quarts de finale ──────────────────────────────────
-        sf_teams = []
-        for i in range(0, len(qf_teams), 2):
-            if i + 1 < len(qf_teams):
-                winner = self._simulate_match_ko(qf_teams[i], qf_teams[i+1], stage="qf")
-                sf_teams.append(winner)
+        # Index: 0=M73, 1=M74, 2=M75, 3=M76, 4=M77, 5=M78,
+        #        6=M79, 7=M80, 8=M81, 9=M82, 10=M83, 11=M84,
+        #        12=M85, 13=M86, 14=M87, 15=M88
 
-        # ── Demi-finales ──────────────────────────────────────
-        finalists = []
-        for i in range(0, len(sf_teams), 2):
-            if i + 1 < len(sf_teams):
-                winner = self._simulate_match_ko(sf_teams[i], sf_teams[i+1], stage="sf")
-                finalists.append(winner)
+        # ── Quarts de finale — bracket officiel FIFA ──────────
+        # Source: wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
+        # CÔTÉ GAUCHE: QF1, QF2, QF5, QF7
+        # CÔTÉ DROIT:  QF3, QF4, QF6, QF8
+        def ko(a, b):
+            return self._simulate_match_ko(a, b, stage="qf")
 
-        # ── Finale ────────────────────────────────────────────
-        if len(finalists) >= 2:
-            champion = self._simulate_match_ko(finalists[0], finalists[1], stage="final")
-        elif len(finalists) == 1:
-            champion = finalists[0]
-        else:
-            champion = "Unknown"
+        qf1 = ko(r32_winners[0],  r32_winners[1])   # M73 vs M74
+        qf2 = ko(r32_winners[2],  r32_winners[3])   # M75 vs M76
+        qf3 = ko(r32_winners[4],  r32_winners[5])   # M77 vs M78 (France 1I)
+        qf4 = ko(r32_winners[6],  r32_winners[7])   # M79 vs M80 (Angleterre 1L)
+        qf5 = ko(r32_winners[8],  r32_winners[9])   # M81 vs M82
+        qf6 = ko(r32_winners[10], r32_winners[11])  # M83 vs M84 (Espagne 1H)
+        qf7 = ko(r32_winners[12], r32_winners[13])  # M85 vs M86 (Argentine 1J)
+        qf8 = ko(r32_winners[14], r32_winners[15])  # M87 vs M88
+
+        # ── Demi-finales — bracket officiel FIFA ──────────────
+        def sf(a, b):
+            return self._simulate_match_ko(a, b, stage="sf")
+
+        # Côté gauche
+        sf1 = sf(qf1, qf2)   # QF1 vs QF2
+        sf3 = sf(qf5, qf7)   # QF5 vs QF7 — Argentine possible
+
+        # Côté droit
+        sf2 = sf(qf3, qf4)   # QF3 vs QF4 — France vs Angleterre possible
+        sf4 = sf(qf6, qf8)   # QF6 vs QF8 — Espagne possible
+
+        # ── Finales ───────────────────────────────────────────
+        # Finale côté gauche
+        finalist_left  = self._simulate_match_ko(sf1, sf3, stage="sf")
+        # Finale côté droit
+        finalist_right = self._simulate_match_ko(sf2, sf4, stage="sf")
+
+        # Grande finale
+        champion = self._simulate_match_ko(finalist_left, finalist_right, stage="final")
 
         return champion
 
