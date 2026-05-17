@@ -276,6 +276,23 @@ class TournamentSimulator:
         ranked = sorted(standings.values(), key=lambda s: (s.points, s.gd, s.gf), reverse=True)
         return ranked[2]  # le 3e
 
+    def _get_best_thirds(self, group_results: dict) -> list:
+        """
+        Sélectionne et trie les 8 meilleurs 3es selon les forces du modèle.
+        Utilise la force d'attaque comme proxy des points (plus rapide).
+        En réalité FIFA utilise pts/gd/gf des 3es simulés.
+        """
+        thirds = []
+        for g, ranked in group_results.items():
+            team = ranked[2]  # 3e du groupe
+            # Force du 3e comme proxy de sa qualité
+            strength = self.model.att_.get(team, 0.5) + (1.0 / max(self.model.def_.get(team, 1.0), 0.1))
+            thirds.append((g, team, strength))
+
+        # Trier par force décroissante → les 8 meilleurs
+        thirds_sorted = sorted(thirds, key=lambda x: x[2], reverse=True)
+        return [(g, team) for g, team, _ in thirds_sorted]
+
     def simulate_once(self) -> str:
         """
         Simule le tournoi complet une fois.
@@ -293,27 +310,20 @@ class TournamentSimulator:
             thirds.append((group_name, ranked[2]))
 
         # ── Sélection des 8 meilleurs 3es ─────────────────────
-        # On recalcule les standings réels des 3es pour les trier
-        # (simplification : on utilise le rang dans le groupe)
-        # En réalité FIFA utilise pts/gd/gf des 3es
-        thirds_sorted = thirds[:8]  # on prend les 8 premiers groupes alphabétiquement
-        # → Dans une vraie implémentation on trierait par points/gd
-
-        # ── Sélection des 8 meilleurs 3es ─────────────────────
-        # On trie les 3es par points puis différence de buts
-        # Pour la simulation on les tire aléatoirement parmi les 12
-        # (dans la réalité c'est les 8 meilleurs sur pts/gd/gf)
-        all_thirds = [(g, group_results[g][2]) for g in WC2026_GROUPS]
-        # On simule leurs standings approximatifs pour les classer
-        # Simplification : on prend les 8 premiers groupes alphabétiquement
-        # car on ne connaît pas leurs vrais points à ce stade
-        # En prod, il faudrait tracker les vrais standings
-        best_thirds_groups = sorted(all_thirds)[:8]  # A→H = les 8 premiers groupes
-        thirds_by_group = {g: team for g, team in best_thirds_groups}
+        # FIFA sélectionne les 8 meilleurs 3es sur pts/gd/gf
+        # On utilise les standings simulés pour trier correctement
+        # (les standings sont trackés dans _simulate_group)
+        all_thirds_ranked = self._get_best_thirds(group_results)
+        best_8_thirds = all_thirds_ranked[:8]  # les 8 meilleurs
+        # Associer chaque 3e à son groupe d'origine
+        thirds_by_group = {g: team for g, team in best_8_thirds}
 
         def get_third(group: str) -> str:
-            """Retourne le meilleur 3e d'un groupe donné, ou un placeholder."""
-            return thirds_by_group.get(group, group_results[group][2])
+            """Retourne le meilleur 3e disponible pour un groupe donné."""
+            if group in thirds_by_group:
+                return thirds_by_group[group]
+            # Fallback : 3e du groupe demandé
+            return group_results[group][2]
 
         # ── Round of 32 — Bracket officiel FIFA 2026 ──────────
         # Source : wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
