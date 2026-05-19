@@ -73,9 +73,37 @@ EXCLUDED_PLAYERS = {
 
 # ── Joueurs présents malgré doutes (à conserver) ─────────────
 # Sadio Mané : convoqué Sénégal ✅
-# Cristiano Ronaldo : convoqué Portugal ✅ (liste annoncée le 19 mai)
+# Cristiano Ronaldo : convoqué Portugal ✅
 # Romelu Lukaku : convoqué Belgique ✅
 # Harry Kane : convoqué Angleterre ✅
+
+# ============================================================
+# LISTES OFFICIELLES — joueurs autorisés par équipe
+# Si une équipe est listée ici, SEULS ces joueurs apparaissent.
+# Les équipes non listées utilisent le filtrage EXCLUDED_PLAYERS.
+# Sources : listes officielles annoncées avant le 18 mai 2026
+# ============================================================
+
+OFFICIAL_SQUADS = {
+    # ── France — liste officielle Deschamps (14 mai 2026) ────
+    "France": {
+        # Gardiens
+        "Mike Maignan", "Brice Samba", "Robin Risser",
+        # Défenseurs
+        "Lucas Digne", "Malo Gusto", "Lucas Hernandez", "Théo Hernandez",
+        "Ibrahima Konaté", "Jules Koundé", "Maxence Lacroix",
+        "William Saliba", "Dayot Upamecano",
+        # Milieux
+        "N'Golo Kanté", "Aurélien Tchouaméni", "Warren Zaïre-Emery",
+        "Manu Koné", "Adrien Rabiot",
+        # Attaquants
+        "Maghnes Akliouche", "Rayan Cherki", "Ousmane Dembélé",
+        "Désiré Doué", "Bradley Barcola", "Jean-Philippe Mateta",
+        "Kylian Mbappé", "Michael Olise", "Marcus Thuram",
+    },
+    # Autres équipes à ajouter au fur et à mesure des annonces officielles
+    # Portugal (attendu 19 mai), Espagne (25 mai), Angleterre (22 mai)...
+}
 
 # ============================================================
 # AJUSTEMENTS MANUELS — stars dont les données sont incomplètes
@@ -213,10 +241,17 @@ class ScorerPredictor:
             )
             player_stats["goals_non_pk"] = player_stats["goals"] - player_stats["penalties"]
 
-            # Exclure les joueurs retirés
-            player_stats = player_stats[
-                ~player_stats["scorer"].isin(EXCLUDED_PLAYERS)
-            ]
+            # Filtrage selon liste officielle si disponible, sinon exclusions générales
+            if team in OFFICIAL_SQUADS:
+                # On garde UNIQUEMENT les joueurs de la liste officielle
+                player_stats = player_stats[
+                    player_stats["scorer"].isin(OFFICIAL_SQUADS[team])
+                ]
+            else:
+                # On exclut les joueurs confirmés absents
+                player_stats = player_stats[
+                    ~player_stats["scorer"].isin(EXCLUDED_PLAYERS)
+                ]
 
             if player_stats.empty:
                 continue
@@ -360,17 +395,16 @@ class ScorerPredictor:
             rows.append({
                 "Joueur":              scorer,
                 "Équipe":              team,
-                "Buts attendus (WC)":  round(exp_goals, 2),
-                "Buts historiques":    int(hist_goals),
-                "dont penalties":      int(penalties),
+                "Buts attendus WC":    round(exp_goals, 2),
+                "% meilleur buteur":   round(min(1 - np.exp(-exp_goals), 0.999) * 100, 1),
             })
 
         df_result = (
             pd.DataFrame(rows)
-            .sort_values("Buts attendus (WC)", ascending=False)
+            .sort_values("Buts attendus WC", ascending=False)
             .reset_index(drop=True)
         )
-        df_result.index += 1  # classement à partir de 1
+        df_result.index += 1
 
         logger.success(f"✅ Classement buteurs calculé — {len(df_result)} joueurs")
         return df_result.head(top_n)
@@ -433,7 +467,8 @@ if __name__ == "__main__":
     top_scorers = scorer_model.predict_tournament_scorers(
         fixtures, all_preds, top_n=20
     )
-    print(top_scorers.to_string())
+    cols = [c for c in ["Joueur","Équipe","Buts attendus WC","% meilleur buteur"] if c in top_scorers.columns]
+    print(top_scorers[cols].to_string())
 
     # ── Buteurs par match — exemples ──────────────────────────
     print("\n\n⚽ BUTEURS PROBABLES — Matchs emblématiques\n")
