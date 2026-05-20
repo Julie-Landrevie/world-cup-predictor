@@ -468,17 +468,29 @@ with tab2:
 # ONGLET 3 — BUTEURS
 # ──────────────────────────────────────────────────────────
 with tab3:
-    col_top, col_team = st.columns([3, 2], gap="large")
+    # ── Top buteurs tournoi complet (simulation Monte Carlo) ─
+    st.markdown('<div class="section-title">🏆 Top buteurs — Tournoi complet (simulation)</div>', unsafe_allow_html=True)
+    st.caption("Buts attendus sur l'ensemble du tournoi (groupes + phase finale) · 500 simulations Monte Carlo")
 
-    with col_top:
-        st.markdown('<div class="section-title">Top buteurs — Phase de groupes</div>', unsafe_allow_html=True)
-        st.caption("Buts attendus sur les 3 matchs de groupe · Données depuis 2020 · Exclusions officielles appliquées")
+    @st.cache_data
+    def get_full_scorer_rankings():
+        match_model, scorer_model_c, _, _ = load_models()
+        state = TournamentState()
+        sim   = TournamentSimulator(model=match_model, state=state)
+        return sim.run_scorer_monte_carlo(scorer_model_c, n_simulations=500)
 
-        top_scorers = scorer_model.predict_tournament_scorers(fixtures, all_preds, top_n=25)
+    with st.spinner("Simulation des buteurs sur le tournoi complet..."):
+        full_scorers = get_full_scorer_rankings()
 
-        for i, (_, row) in enumerate(top_scorers.iterrows(), 1):
+    col_full, col_team = st.columns([3, 2], gap="large")
+
+    with col_full:
+        st.caption("Phase de groupes + huitièmes + quarts + demi-finales + finale")
+        for i, (_, row) in enumerate(full_scorers.head(20).iterrows(), 1):
             team  = row["Équipe"]
             medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            buts  = row["Buts attendus"]
+            pct   = row["% marquer"]
             st.markdown(f"""
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;
                         background:#111827; border:1px solid #1F2937; border-radius:8px;
@@ -487,38 +499,64 @@ with tab3:
                 <div style="font-size:1.3rem">{flag(team)}</div>
                 <div style="flex:1">
                     <div style="font-weight:600; font-size:0.9rem">{row['Joueur']}</div>
-                    <div style="font-size:0.72rem; color:#6B7280">{team}</div>
+                    <div style="font-size:0.72rem; color:#6B7280">{team} · {row['Matchs moyens']:.1f} matchs en moyenne</div>
                 </div>
                 <div style="text-align:right">
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.3rem; color:#F5C842">
-                        {row['Buts attendus WC']:.2f}
-                    </div>
-                    <div style="font-size:0.68rem; color:#6B7280">{row.get('% meilleur buteur', 0):.0f}% de marquer</div>
+                    <div style="font-family:'Bebas Neue',cursive; font-size:1.3rem; color:#F5C842">{buts:.2f}</div>
+                    <div style="font-size:0.68rem; color:#6B7280">{pct:.0f}% de marquer</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
     with col_team:
-        st.markdown('<div class="section-title">Top buteurs par équipe</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Par équipe</div>', unsafe_allow_html=True)
+        st.caption("Buts attendus dans la compétition · % meilleur buteur de la sélection")
 
+        _, scorer_model_t, fixtures_t, all_preds_t = load_models()
         team_options = sorted([t for t in WC2026_GROUPS.values() for t in t])
         selected_team = st.selectbox("Choisir une équipe", team_options)
 
         if selected_team:
-            df_t = scorer_model.get_team_top_scorers(selected_team, top_n=8)
-            if "Joueur" in df_t.columns:
-                st.markdown(f"**{flag(selected_team)} {selected_team}**")
-                for _, r in df_t.iterrows():
-                    pct  = r["% buts de l'équipe"]
-                    buts = r["Buts (depuis 2020)"]
-                    joueur = r["Joueur"]
+            # Buts attendus sur les matchs de groupe pour cette équipe
+            team_preds = all_preds_t[
+                (all_preds_t["home"] == selected_team) |
+                (all_preds_t["away"] == selected_team)
+            ]
+            total_exp = 0
+            player_exp = {}
+            for _, row in team_preds.iterrows():
+                if row["home"] == selected_team:
+                    exp_g = row["buts_home"]
+                else:
+                    exp_g = row["buts_away"]
+                total_exp += exp_g
+                if selected_team in scorer_model_t.team_scorers_:
+                    for _, p in scorer_model_t.team_scorers_[selected_team].iterrows():
+                        key = p["scorer"]
+                        player_exp[key] = player_exp.get(key, 0) + exp_g * p["ratio"]
+
+            st.markdown(f"**{flag(selected_team)} {selected_team}**")
+            st.caption(f"Buts attendus phase de groupes : {total_exp:.2f}")
+
+            if player_exp:
+                sorted_players = sorted(player_exp.items(), key=lambda x: x[1], reverse=True)
+                max_exp = sorted_players[0][1] if sorted_players else 1
+                for joueur, exp_g in sorted_players[:8]:
+                    prob_top = (exp_g / total_exp * 100) if total_exp > 0 else 0
+                    bar_w = int(exp_g / max_exp * 100)
                     st.markdown(f"""
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;
-                                background:#111827; border:1px solid #1F2937; border-radius:6px;
-                                padding:8px 12px;">
-                        <div style="flex:1; font-size:0.85rem; font-weight:500">{joueur}</div>
-                        <div style="font-size:0.75rem; color:#6B7280">{buts} buts</div>
-                        <div style="font-family:'Bebas Neue',cursive; color:#F5C842; font-size:1rem; min-width:40px; text-align:right">{pct:.0f}%</div>
+                    <div style="background:#111827; border:1px solid #1F2937; border-radius:6px;
+                                padding:8px 12px; margin-bottom:6px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-size:0.85rem; font-weight:500">{joueur}</div>
+                            <div style="text-align:right">
+                                <span style="font-family:'Bebas Neue',cursive; color:#F5C842">{exp_g:.2f} buts</span>
+                                <span style="font-size:0.68rem; color:#6B7280; margin-left:6px">{prob_top:.0f}% top buteur</span>
+                            </div>
+                        </div>
+                        <div style="height:3px; background:#1F2937; border-radius:2px; margin-top:6px;">
+                            <div style="height:3px; width:{bar_w}%; background:linear-gradient(90deg,#F5C842,#E8334A); border-radius:2px;"></div>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
 

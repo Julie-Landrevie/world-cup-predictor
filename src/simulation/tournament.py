@@ -543,6 +543,139 @@ class TournamentSimulator:
         logger.success(f"✅ Simulation terminée — Champion le plus probable : {df.iloc[0]['team']} ({df.iloc[0]['prob_win']}%)")
         return df
 
+    def run_scorer_monte_carlo(
+        self,
+        scorer_model,
+        n_simulations: int = 1000,
+    ) -> pd.DataFrame:
+        """
+        Simule le tournoi complet et accumule les buts attendus
+        par joueur sur TOUS les matchs (groupes + phase finale).
+
+        Returns:
+            DataFrame avec buts attendus sur tournoi complet + % meilleur buteur
+        """
+        import numpy as np
+        logger.info(f"🎲 Simulation buteurs ({n_simulations} tournois complets)...")
+
+        # Accumuler les buts attendus par joueur
+        player_goals = {}  # {(team, scorer): total_expected}
+        player_matches = {}  # {(team, scorer): nb_matchs}
+
+        for sim_i in range(n_simulations):
+            # ── Phase de groupes ──────────────────────────────
+            group_results = {}
+            for group_name, teams in WC2026_GROUPS.items():
+                ranked = self._simulate_group(group_name, teams)
+                group_results[group_name] = ranked
+
+                # Accumuler buts pour chaque match de groupe
+                matchups = [
+                    (teams[0], teams[1]), (teams[0], teams[2]), (teams[0], teams[3]),
+                    (teams[1], teams[2]), (teams[1], teams[3]), (teams[2], teams[3]),
+                ]
+                for home, away in matchups:
+                    pred = self.model.predict_score(home, away, neutral=True)
+                    for team, exp_g in [(home, pred["expected_home"]),
+                                        (away, pred["expected_away"])]:
+                        if team in scorer_model.team_scorers_:
+                            for _, p in scorer_model.team_scorers_[team].iterrows():
+                                key = (team, p["scorer"])
+                                contrib = exp_g * p["ratio"]
+                                player_goals[key] = player_goals.get(key, 0) + contrib
+                                player_matches[key] = player_matches.get(key, 0) + 1
+
+            # ── Phase finale ──────────────────────────────────
+            all_thirds_ranked = self._get_best_thirds(group_results)
+            best_8 = all_thirds_ranked[:8]
+            qualified_third_groups = frozenset(g for g, _ in best_8)
+            thirds_by_group = {g: team for g, team in best_8}
+            combo = FIFA_THIRD_COMBINATIONS.get(qualified_third_groups, None)
+
+            def get_third(match_key):
+                if combo and match_key in combo:
+                    g = combo[match_key][1]
+                    return thirds_by_group.get(g, group_results[g][2])
+                return all_thirds_ranked[0][1] if all_thirds_ranked else "Unknown"
+
+            r32_matchups = [
+                (group_results["A"][1], group_results["B"][1]),
+                (group_results["E"][0], get_third("1E")),
+                (group_results["F"][0], group_results["C"][1]),
+                (group_results["C"][0], group_results["F"][1]),
+                (group_results["I"][0], get_third("1I")),
+                (group_results["E"][1], group_results["I"][1]),
+                (group_results["A"][0], get_third("1A")),
+                (group_results["L"][0], get_third("1L")),
+                (group_results["D"][0], get_third("1D")),
+                (group_results["G"][0], get_third("1G")),
+                (group_results["K"][1], group_results["L"][1]),
+                (group_results["H"][0], group_results["J"][1]),
+                (group_results["B"][0], get_third("1B")),
+                (group_results["J"][0], group_results["H"][1]),
+                (group_results["K"][0], get_third("1K")),
+                (group_results["D"][1], group_results["G"][1]),
+            ]
+
+            # Simuler tous les matchs KO et accumuler buts
+            def simulate_ko_and_accumulate(home, away, stage):
+                pred = self.model.predict_score(home, away, neutral=True)
+                for team, exp_g in [(home, pred["expected_home"]),
+                                    (away, pred["expected_away"])]:
+                    if team in scorer_model.team_scorers_:
+                        for _, p in scorer_model.team_scorers_[team].iterrows():
+                            key = (team, p["scorer"])
+                            contrib = exp_g * p["ratio"]
+                            player_goals[key] = player_goals.get(key, 0) + contrib
+                            player_matches[key] = player_matches.get(key, 0) + 1
+                return self._simulate_match_ko(home, away, stage)
+
+            r32_w = [simulate_ko_and_accumulate(h, a, "r32") for h, a in r32_matchups]
+
+            qf1 = simulate_ko_and_accumulate(r32_w[0],  r32_w[1],  "qf")
+            qf2 = simulate_ko_and_accumulate(r32_w[2],  r32_w[3],  "qf")
+            qf3 = simulate_ko_and_accumulate(r32_w[4],  r32_w[5],  "qf")
+            qf4 = simulate_ko_and_accumulate(r32_w[6],  r32_w[7],  "qf")
+            qf5 = simulate_ko_and_accumulate(r32_w[8],  r32_w[9],  "qf")
+            qf6 = simulate_ko_and_accumulate(r32_w[10], r32_w[11], "qf")
+            qf7 = simulate_ko_and_accumulate(r32_w[12], r32_w[13], "qf")
+            qf8 = simulate_ko_and_accumulate(r32_w[14], r32_w[15], "qf")
+
+            sf1 = simulate_ko_and_accumulate(qf1, qf2, "sf")
+            sf2 = simulate_ko_and_accumulate(qf3, qf4, "sf")
+            sf3 = simulate_ko_and_accumulate(qf5, qf7, "sf")
+            sf4 = simulate_ko_and_accumulate(qf6, qf8, "sf")
+
+            fl = simulate_ko_and_accumulate(sf1, sf3, "final")
+            fr = simulate_ko_and_accumulate(sf2, sf4, "final")
+            simulate_ko_and_accumulate(fl, fr, "final")
+
+            if (sim_i + 1) % 200 == 0:
+                logger.debug(f"  {sim_i + 1}/{n_simulations} simulations...")
+
+        # Convertir en DataFrame
+        rows = []
+        for (team, scorer), total_goals in player_goals.items():
+            avg_goals   = total_goals / n_simulations
+            avg_matches = player_matches.get((team, scorer), 0) / n_simulations
+            prob_score  = min(1 - np.exp(-avg_goals), 0.999) * 100
+            rows.append({
+                "Joueur":             scorer,
+                "Équipe":             team,
+                "Buts attendus":      round(avg_goals, 2),
+                "Matchs moyens":      round(avg_matches, 1),
+                "% marquer":          round(prob_score, 1),
+            })
+
+        df = (
+            pd.DataFrame(rows)
+            .sort_values("Buts attendus", ascending=False)
+            .reset_index(drop=True)
+        )
+        df.index += 1
+        logger.success(f"✅ Simulation buteurs terminée — {len(df)} joueurs")
+        return df
+
     def group_stage_probabilities(self, n_simulations: int = 5000) -> pd.DataFrame:
         """
         Calcule les probabilités de qualification de chaque équipe

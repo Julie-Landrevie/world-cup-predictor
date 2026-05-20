@@ -62,8 +62,12 @@ EXCLUDED_PLAYERS = {
     # ── Blessés / non convoqués ───────────────────────────────
     "Raheem Sterling",     # non convoqué Angleterre
     "Marcus Rashford",     # non convoqué Angleterre (Tuchel)
-    "Neymar",              # blessures chroniques, non convoqué Brésil
+    # Neymar convoqué par le Brésil (18 mai 2026) — NE PAS EXCLURE
     "Hugo Ekitike",        # blessé tendon Achille, remplacé par Mateta
+    "Rodrygo",             # absent liste Brésil — blessé (surprise Ancelotti)
+    "Estêvão",             # absent liste Brésil
+    "João Pedro",          # absent liste Brésil (Chelsea)
+    "Thiago Silva",        # non retenu Brésil
     "Diogo Jota",          # décédé le 3 juillet 2025 — RIP 🙏
 
     # ── Doublons dataset (variantes orthographiques) ──────────
@@ -101,8 +105,46 @@ OFFICIAL_SQUADS = {
         "Désiré Doué", "Bradley Barcola", "Jean-Philippe Mateta",
         "Kylian Mbappé", "Michael Olise", "Marcus Thuram",
     },
+
+    # ── Brésil — liste officielle Ancelotti (18 mai 2026) ───
+    # Rodrygo absent (blessé), Neymar de retour, Estêvão absent
+    "Brazil": {
+        # Gardiens
+        "Alisson", "Ederson", "Weverton",
+        # Défenseurs
+        "Marquinhos", "Gabriel", "Bremer", "Ibañez",
+        "Leo Pereira", "Wesley", "Danilo", "Alex Sandro", "Douglas Santos",
+        # Milieux
+        "Casemiro", "Bruno Guimarães", "Fabinho", "Lucas Paquetá",
+        # Attaquants
+        "Vinícius Júnior", "Raphinha", "Neymar", "Matheus Cunha",
+        "Luiz Henrique", "Igor Thiago", "Endrick", "Martinelli",
+        "Rayan", "Richarlison",
+    },
+
+    # ── Croatie — liste officielle (18 mai 2026) ─────────────
+    "Croatia": {
+        "Dominik Livaković", "Ivica Ivušić", "Lovre Kalinić",
+        "Josip Šutalo", "Josip Stanišić", "Martin Erlić", "Dario Spikić",
+        "Borna Sosa", "Joško Gvardiol", "Ivan Perišić",
+        "Luka Modrić", "Mateo Kovačić", "Marcelo Brozović",
+        "Mario Pašalić", "Lovro Majer", "Luka Sučić",
+        "Andrej Kramarić", "Marko Pjaca", "Bruno Petković",
+        "Ivan Perišić", "Petar Sucić",
+    },
+
+    # ── Autriche — liste officielle (18 mai 2026) ────────────
+    "Austria": {
+        "Patrick Pentz", "Daniel Bachmann", "Tobias Lawal",
+        "Stefan Posch", "Maximilian Wöber", "Kevin Danso",
+        "Phillipp Mwene", "Christoph Baumgartner",
+        "Konrad Laimer", "Nicolas Seiwald", "Florian Kainz",
+        "Marcel Sabitzer", "Patrick Wimmer", "Romano Schmid",
+        "Michael Gregoritsch", "Marko Arnautović",
+        "Andreas Weimann", "Guido Burgstaller",
+    },
     # Autres équipes à ajouter au fur et à mesure des annonces officielles
-    # Portugal (attendu 19 mai), Espagne (25 mai), Angleterre (22 mai)...
+    # Portugal (19 mai), Espagne (25 mai), Angleterre (22 mai), Allemagne (21 mai)
 }
 
 # ============================================================
@@ -119,6 +161,9 @@ PLAYER_BOOST = {
     "Marcus Thuram":        1.10,  # titulaire indiscutable, prolifique à l'Inter
     "Ousmane Dembélé":      1.05,  # bon début de saison PSG
     "Bradley Barcola":      1.10,  # nouvelle star, sous-représenté dataset
+    "Adrien Rabiot":        0.45,  # milieu défensif — rarement buteur
+    "Aurélien Tchouaméni":  0.40,  # milieu défensif
+    "Manu Koné":            0.40,  # milieu défensif
     "Michael Olise":        1.10,  # en grande forme Bayern
     "Rayan Cherki":         1.05,  # nouvelle star, peu de capes
     "Maghnes Akliouche":    1.05,  # surprenant mais présent
@@ -156,6 +201,9 @@ PLAYER_BOOST = {
 
     # ── Brésil (liste attendue 18 mai) ───────────────────────
     "Vinícius Júnior":      1.25,  # meilleur joueur monde, sous-représenté
+    "Neymar":              0.75,  # retour après 2.5 ans absence — incertitude forme
+    "Martinelli":          1.10,  # en grande forme Arsenal
+    "Matheus Cunha":       1.05,  # en grande forme Manchester United
     "Raphinha":             1.10,  # capitaine, en grande forme Barça
     "Rodrygo":              1.10,
     "Richarlison":          1.00,
