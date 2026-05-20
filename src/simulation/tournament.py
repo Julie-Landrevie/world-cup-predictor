@@ -505,43 +505,303 @@ class TournamentSimulator:
 
         return champion
 
-    def run_monte_carlo(self, n_simulations: int = 10000) -> pd.DataFrame:
+    def run_monte_carlo(self, n_simulations: int = 10000) -> tuple:
         """
         Lance n_simulations simulations du tournoi complet.
 
         Returns:
-            DataFrame avec la probabilité de victoire finale de chaque équipe,
-            trié par probabilité décroissante.
+            Tuple (df_champions, knockout_data) :
+            - df_champions : probabilités de victoire finale
+            - knockout_data : dict avec les matchups les plus probables
+              par phase {r32, qf, sf, final}
         """
         logger.info(f"🎲 Lancement de {n_simulations} simulations...")
 
-        champions = {}
         all_teams = [t for teams in WC2026_GROUPS.values() for t in teams]
-        for team in all_teams:
-            champions[team] = 0
+        champions = {t: 0 for t in all_teams}
+
+        # Tracking des matchups par phase
+        # Format: {phase: Counter({(team1, team2): count})}
+        from collections import Counter
+        phase_matchups = {
+            "r32":   Counter(),
+            "qf":    Counter(),
+            "sf":    Counter(),
+            "final": Counter(),
+        }
+        # Tracking qui atteint chaque phase
+        phase_reach = {
+            "r32":   Counter(),
+            "qf":    Counter(),
+            "sf":    Counter(),
+            "final": Counter(),
+        }
 
         for i in range(n_simulations):
-            champion = self.simulate_once()
-            if champion in champions:
-                champions[champion] += 1
-            if (i + 1) % 1000 == 0:
+            # ── Phase de groupes ─────────────────────────────
+            group_results = {}
+            for group_name, teams in WC2026_GROUPS.items():
+                ranked = self._simulate_group(group_name, teams)
+                group_results[group_name] = ranked
+
+            all_thirds_ranked = self._get_best_thirds(group_results)
+            best_8 = all_thirds_ranked[:8]
+            qualified_third_groups = frozenset(g for g, _ in best_8)
+            thirds_by_group = {g: team for g, team in best_8}
+            combo = FIFA_THIRD_COMBINATIONS.get(qualified_third_groups, None)
+
+            def get_third(match_key):
+                if combo and match_key in combo:
+                    g = combo[match_key][1]
+                    return thirds_by_group.get(g, group_results[g][2])
+                return all_thirds_ranked[0][1] if all_thirds_ranked else "Unknown"
+
+            r32_matchups = [
+                (group_results["A"][1], group_results["B"][1]),
+                (group_results["E"][0], get_third("1E")),
+                (group_results["F"][0], group_results["C"][1]),
+                (group_results["C"][0], group_results["F"][1]),
+                (group_results["I"][0], get_third("1I")),
+                (group_results["E"][1], group_results["I"][1]),
+                (group_results["A"][0], get_third("1A")),
+                (group_results["L"][0], get_third("1L")),
+                (group_results["D"][0], get_third("1D")),
+                (group_results["G"][0], get_third("1G")),
+                (group_results["K"][1], group_results["L"][1]),
+                (group_results["H"][0], group_results["J"][1]),
+                (group_results["B"][0], get_third("1B")),
+                (group_results["J"][0], group_results["H"][1]),
+                (group_results["K"][0], get_third("1K")),
+                (group_results["D"][1], group_results["G"][1]),
+            ]
+
+            # ── Round of 32 ───────────────────────────────────
+            r32_winners = []
+            for home, away in r32_matchups:
+                key = tuple(sorted([home, away]))
+                phase_matchups["r32"][key] += 1
+                phase_reach["r32"][home] += 1
+                phase_reach["r32"][away] += 1
+                winner = self._simulate_match_ko(home, away, stage="r32")
+                r32_winners.append(winner)
+
+            def ko(a, b, phase):
+                key = tuple(sorted([a, b]))
+                phase_matchups[phase][key] += 1
+                phase_reach[phase][a] += 1
+                phase_reach[phase][b] += 1
+                return self._simulate_match_ko(a, b, stage=phase)
+
+            qf1 = ko(r32_winners[0],  r32_winners[1],  "qf")
+            qf2 = ko(r32_winners[2],  r32_winners[3],  "qf")
+            qf3 = ko(r32_winners[4],  r32_winners[5],  "qf")
+            qf4 = ko(r32_winners[6],  r32_winners[7],  "qf")
+            qf5 = ko(r32_winners[8],  r32_winners[9],  "qf")
+            qf6 = ko(r32_winners[10], r32_winners[11], "qf")
+            qf7 = ko(r32_winners[12], r32_winners[13], "qf")
+            qf8 = ko(r32_winners[14], r32_winners[15], "qf")
+
+            sf1 = ko(qf1, qf2, "sf")
+            sf2 = ko(qf3, qf4, "sf")
+            sf3 = ko(qf5, qf7, "sf")
+            sf4 = ko(qf6, qf8, "sf")
+
+            fl = ko(sf1, sf3, "sf")
+            fr = ko(sf2, sf4, "sf")
+
+            finalist_left  = fl
+            finalist_right = fr
+            key = tuple(sorted([finalist_left, finalist_right]))
+            phase_matchups["final"][key] += 1
+            phase_reach["final"][finalist_left]  += 1
+            phase_reach["final"][finalist_right] += 1
+            champion = self._simulate_match_ko(finalist_left, finalist_right, stage="final")
+            champions[champion] = champions.get(champion, 0) + 1
+
+            if (i + 1) % 500 == 0:
                 logger.debug(f"  {i+1}/{n_simulations} simulations...")
 
-        # Conversion en probabilités
+        # ── Résultats champions ───────────────────────────────
         results = []
         for team, wins in champions.items():
             results.append({
-                "team":      team,
-                "group":     next(g for g, teams in WC2026_GROUPS.items() if team in teams),
-                "wins":      wins,
-                "prob_win":  round(wins / n_simulations * 100, 2),
+                "team":     team,
+                "group":    next(g for g, teams in WC2026_GROUPS.items() if team in teams),
+                "wins":     wins,
+                "prob_win": round(wins / n_simulations * 100, 2),
             })
-
         df = pd.DataFrame(results).sort_values("prob_win", ascending=False).reset_index(drop=True)
         df["rank"] = df.index + 1
 
-        logger.success(f"✅ Simulation terminée — Champion le plus probable : {df.iloc[0]['team']} ({df.iloc[0]['prob_win']}%)")
-        return df
+        # ── Données phase finale ──────────────────────────────
+        knockout_data = {}
+        for phase, counter in phase_matchups.items():
+            top_matchups = []
+            for (t1, t2), count in counter.most_common(16):
+                prob = count / n_simulations * 100
+                # Probabilité que t1 gagne ce match
+                pred = self.model.predict_score(t1, t2, neutral=True)
+                top_matchups.append({
+                    "home":     t1,
+                    "away":     t2,
+                    "prob_match": round(prob, 1),
+                    "score":    pred["rounded_score"],
+                    "prob_home_win": pred["prob_home_win"],
+                    "prob_draw":     pred["prob_draw"],
+                    "prob_away_win": pred["prob_away_win"],
+                    "exp_home": pred["expected_home"],
+                    "exp_away": pred["expected_away"],
+                })
+            knockout_data[phase] = top_matchups
+
+        # Reach probabilities
+        reach_probs = {}
+        for phase, counter in phase_reach.items():
+            reach_probs[phase] = {
+                team: round(count / n_simulations * 100, 1)
+                for team, count in counter.items()
+            }
+        knockout_data["reach"] = reach_probs
+
+        logger.success(f"✅ Simulation — Champion : {df.iloc[0]['team']} ({df.iloc[0]['prob_win']}%)")
+        return df, knockout_data
+
+    def simulate_most_likely_bracket(self, scorer_model=None) -> dict:
+        """
+        Simule le bracket le plus probable du tournoi WC 2026.
+
+        Format WC 2026 :
+          Seizièmes (R32, 16 matchs)
+          → Huitièmes (R16, 8 matchs)
+          → Quarts (QF, 4 matchs)
+          → Demies (SF, 2 matchs)
+          → Finale (1 match)
+
+        Les équipes qualifiées sont les plus probables d'après le modèle.
+        Le bracket suit le tableau officiel FIFA.
+        """
+        logger.info("Calcul du bracket le plus probable...")
+
+        result = {"r32": [], "r16": [], "qf": [], "sf": [], "final": []}
+
+        # ── Qualifiés les plus probables ─────────────────────
+        # 1ers de groupe
+        W = {
+            "A": "Mexico",      "B": "Canada",      "C": "Brazil",
+            "D": "Australia",   "E": "Germany",     "F": "Netherlands",
+            "G": "Belgium",     "H": "Spain",       "I": "France",
+            "J": "Argentina",   "K": "Portugal",    "L": "England",
+        }
+        # 2es de groupe
+        R = {
+            "A": "South Korea", "B": "United States", "C": "Morocco",
+            "D": "Turkey",      "E": "Ivory Coast",   "F": "Japan",
+            "G": "New Zealand", "H": "Uruguay",        "I": "Norway",
+            "J": "Austria",     "K": "Colombia",       "L": "Croatia",
+        }
+        # 8 meilleurs 3es (d'après forces du modèle + bookmakers)
+        T3 = {
+            "A": "Czech Republic",          "B": "Bosnia and Herzegovina",
+            "C": "Scotland",                "E": "Ecuador",
+            "F": "Sweden",                  "G": "Senegal",
+            "I": "Algeria",                 "L": "Ghana",
+        }
+        # Fonction helper pour récupérer le 3e d'un groupe
+        def t3(g): return T3.get(g, "TBD")
+
+        # ── Bracket officiel FIFA — Seizièmes (R32) ───────────
+        # Source : wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
+        r32_pairs = [
+            # Match : home,        away,         id
+            (R["A"],    R["B"],    "M73"),   # 2A vs 2B
+            (W["E"],    t3("F"),   "M74"),   # 1E vs 3F
+            (W["F"],    R["C"],    "M75"),   # 1F vs 2C
+            (W["C"],    R["F"],    "M76"),   # 1C vs 2F
+            (W["I"],    t3("A"),   "M77"),   # 1I vs 3A
+            (R["E"],    R["I"],    "M78"),   # 2E vs 2I
+            (W["A"],    t3("C"),   "M79"),   # 1A vs 3C
+            (W["L"],    t3("E"),   "M80"),   # 1L vs 3E
+            (W["D"],    t3("B"),   "M81"),   # 1D vs 3B
+            (W["G"],    t3("G"),   "M82"),   # 1G vs 3G → Sénégal
+            (R["K"],    R["L"],    "M83"),   # 2K vs 2L
+            (W["H"],    R["J"],    "M84"),   # 1H vs 2J
+            (W["B"],    t3("I"),   "M85"),   # 1B vs 3I → Algérie
+            (W["J"],    R["H"],    "M86"),   # 1J vs 2H
+            (W["K"],    t3("L"),   "M87"),   # 1K vs 3L → Ghana
+            (R["D"],    R["G"],    "M88"),   # 2D vs 2G
+        ]
+
+        def predict_match(home, away, phase, match_id=""):
+            """Prédit un match KO et retourne le vainqueur le plus probable."""
+            pred   = self.model.predict_score(home, away, neutral=True)
+            winner = home if pred["prob_home_win"] >= pred["prob_away_win"] else away
+            scorers = {}
+            if scorer_model:
+                try:
+                    scorers = scorer_model.predict_match_scorers(
+                        home, away, pred["expected_home"], pred["expected_away"], top_n=3
+                    )
+                except: pass
+            result[phase].append({
+                "match_id":      match_id,
+                "home":          home,
+                "away":          away,
+                "score":         pred["rounded_score"],
+                "exp_home":      pred["expected_home"],
+                "exp_away":      pred["expected_away"],
+                "prob_home_win": pred["prob_home_win"],
+                "prob_draw":     pred["prob_draw"],
+                "prob_away_win": pred["prob_away_win"],
+                "winner":        winner,
+                "scorers":       scorers,
+            })
+            return winner
+
+        # Simuler les 16 seizièmes
+        r32_w = [predict_match(h, a, "r32", mid) for h, a, mid in r32_pairs]
+
+        # ── Huitièmes (R16) — bracket FIFA ────────────────────
+        # Les gagnants s'enchaînent selon le tableau officiel :
+        # M89 = W(M73) vs W(M74)  M90 = W(M75) vs W(M76)
+        # M91 = W(M77) vs W(M78)  M92 = W(M79) vs W(M80)
+        # M93 = W(M81) vs W(M82)  M94 = W(M83) vs W(M84)
+        # M95 = W(M85) vs W(M86)  M96 = W(M87) vs W(M88)
+        r16_pairs = [
+            (r32_w[0],  r32_w[1],  "M89"),
+            (r32_w[2],  r32_w[3],  "M90"),
+            (r32_w[4],  r32_w[5],  "M91"),
+            (r32_w[6],  r32_w[7],  "M92"),
+            (r32_w[8],  r32_w[9],  "M93"),
+            (r32_w[10], r32_w[11], "M94"),
+            (r32_w[12], r32_w[13], "M95"),
+            (r32_w[14], r32_w[15], "M96"),
+        ]
+        r16_w = [predict_match(h, a, "r16", mid) for h, a, mid in r16_pairs]
+
+        # ── Quarts de finale ──────────────────────────────────
+        # M97 = W(M89) vs W(M90)  M98 = W(M91) vs W(M92)
+        # M99 = W(M93) vs W(M94)  M100= W(M95) vs W(M96)
+        qf_pairs = [
+            (r16_w[0], r16_w[1], "QF1"),
+            (r16_w[2], r16_w[3], "QF2"),
+            (r16_w[4], r16_w[5], "QF3"),
+            (r16_w[6], r16_w[7], "QF4"),
+        ]
+        qf_w = [predict_match(h, a, "qf", mid) for h, a, mid in qf_pairs]
+
+        # ── Demi-finales ──────────────────────────────────────
+        sf_pairs = [
+            (qf_w[0], qf_w[1], "SF1"),
+            (qf_w[2], qf_w[3], "SF2"),
+        ]
+        sf_w = [predict_match(h, a, "sf", mid) for h, a, mid in sf_pairs]
+
+        # ── Finale ────────────────────────────────────────────
+        predict_match(sf_w[0], sf_w[1], "final",
+                      "FINALE — MetLife Stadium, New Jersey · 19 juillet 2026")
+
+        logger.success(f"✅ Bracket — Finale : {sf_w[0]} vs {sf_w[1]}")
+        return result
 
     def run_scorer_monte_carlo(
         self,
@@ -654,9 +914,13 @@ class TournamentSimulator:
                 logger.debug(f"  {sim_i + 1}/{n_simulations} simulations...")
 
         # Convertir en DataFrame
+        # Plafonnement réaliste : record ère moderne = 8 buts (Müller 2010)
+        # On plafonne à 7.0 pour rester dans les bornes historiques
+        MAX_GOALS_TOURNAMENT = 7.0
+
         rows = []
         for (team, scorer), total_goals in player_goals.items():
-            avg_goals   = total_goals / n_simulations
+            avg_goals   = min(total_goals / n_simulations, MAX_GOALS_TOURNAMENT)
             avg_matches = player_matches.get((team, scorer), 0) / n_simulations
             prob_score  = min(1 - np.exp(-avg_goals), 0.999) * 100
             rows.append({

@@ -277,11 +277,12 @@ def load_models():
 
 @st.cache_data
 def get_tournament_probs(n_sims=2000):
-    """Monte Carlo — probabilités de remporter le tournoi."""
+    """Monte Carlo — probabilités de remporter le tournoi + données phase finale."""
     match_model, _, _, _ = load_models()
     state = TournamentState()
     sim   = TournamentSimulator(model=match_model, state=state)
-    return sim.run_monte_carlo(n_simulations=n_sims)
+    df, ko_data = sim.run_monte_carlo(n_simulations=n_sims)
+    return df, ko_data
 
 
 # ============================================================
@@ -322,12 +323,13 @@ st.divider()
 # ONGLETS
 # ============================================================
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🏆 Pronostics tournoi",
     "⚽ Matchs de groupe",
     "🥇 Buteurs",
     "👥 Groupes",
     "🔍 Match par match",
+    "🏟️ Phase finale",
 ])
 
 
@@ -343,7 +345,7 @@ with tab1:
     with col_mc:
         st.markdown("**📊 Notre modèle**")
         with st.spinner("Simulation en cours (2000 tournois)..."):
-            mc = get_tournament_probs(n_sims=2000)
+            mc, ko_data = get_tournament_probs(n_sims=2000)
 
         top20 = mc.head(20)
         for _, row in top20.iterrows():
@@ -570,10 +572,10 @@ with tab4:
 
     @st.cache_data
     def get_group_probs():
-        match_model, _, _, _ = load_models()
-        state = TournamentState()
-        sim   = TournamentSimulator(model=match_model, state=state)
-        return sim.group_stage_probabilities(n_simulations=1000)
+        match_model_g, _, _, _ = load_models()
+        state_g = TournamentState()
+        sim_g   = TournamentSimulator(model=match_model_g, state=state_g)
+        return sim_g.group_stage_probabilities(n_simulations=1000)
 
     with st.spinner("Calcul des probabilités de groupe..."):
         group_probs = get_group_probs()
@@ -697,3 +699,123 @@ with tab5:
                         """, unsafe_allow_html=True)
     else:
         st.info("Sélectionne deux équipes différentes.")
+
+
+# ──────────────────────────────────────────────────────────
+# ONGLET 6 — PHASE FINALE
+# ──────────────────────────────────────────────────────────
+with tab6:
+    st.markdown('<div class="section-title">🏟️ Phase finale — Scénario le plus probable</div>', unsafe_allow_html=True)
+    st.caption("Simulation déterministe basée sur les forces du modèle · Les équipes les plus probables à chaque étape")
+
+    st.markdown("""
+    <div style="background:#111827; border:1px solid #F5C842; border-radius:8px;
+                padding:12px 16px; margin-bottom:20px; font-size:0.78rem; color:#9CA3AF;">
+    ⚠️ <b>Mise en garde</b> — Ces prédictions seront mises à jour au fur et à mesure des vrais résultats.
+    Record de buts sur une Coupe du Monde : <b>13 buts</b> (Just Fontaine, 1958) ·
+    Ère moderne : <b>8 buts</b> · Maximum possible : <b>7 matchs</b> par équipe (8 avec la phase de groupes).
+    </div>
+    """, unsafe_allow_html=True)
+
+    @st.cache_data
+    def get_most_likely_bracket():
+        match_model_b, scorer_model_b, _, _ = load_models()
+        state_b = TournamentState()
+        sim_b   = TournamentSimulator(model=match_model_b, state=state_b)
+        return sim_b.simulate_most_likely_bracket(scorer_model=scorer_model_b)
+
+    with st.spinner("Calcul du bracket le plus probable..."):
+        bracket = get_most_likely_bracket()
+
+    PHASE_NAMES = {
+        "r32":   ("⚔️ Seizièmes de finale — Round of 32", 4),
+        "r16":   ("🔥 Huitièmes de finale — Round of 16", 4),
+        "qf":    ("🏅 Quarts de finale",                  2),
+        "sf":    ("🥈 Demi-finales",                       2),
+        "final": ("🏆 Finale",                             1),
+    }
+
+    for phase, (phase_label, n_cols) in PHASE_NAMES.items():
+        matches = bracket.get(phase, [])
+        if not matches:
+            continue
+        if not matches:
+            continue
+
+        st.markdown(f'<div class="section-title">{phase_label}</div>', unsafe_allow_html=True)
+
+        if n_cols > 1:
+            cols = st.columns(n_cols, gap="medium")
+        else:
+            cols = [st.container()]
+
+        for i, m in enumerate(matches):
+            home = m["home"]
+            away = m["away"]
+            winner = m["winner"]
+            ph = m["prob_home_win"]
+            pd_ = m["prob_draw"]
+            pa = m["prob_away_win"]
+            score = m["score"]
+            mid = m.get("match_id", "")
+
+            winner_color_h = "#F5C842" if winner == home else "#6B7280"
+            winner_color_a = "#F5C842" if winner == away else "#6B7280"
+
+            col = cols[i % n_cols] if n_cols > 1 else cols[0]
+            with col:
+                st.markdown(f"""
+                <div style="background:#111827; border:1px solid {'#F5C842' if phase=='final' else '#1F2937'};
+                            border-radius:10px; padding:14px 16px; margin-bottom:10px;">
+                    <div style="font-size:0.65rem; color:#6B7280; text-align:center; margin-bottom:8px;
+                                text-transform:uppercase; letter-spacing:1px;">{mid}</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                        <div style="flex:2; text-align:right;">
+                            <div style="font-size:1.2rem">{flag(home)}</div>
+                            <div style="font-weight:600; font-size:0.85rem; color:{winner_color_h}">{home}</div>
+                            <div style="font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#10B981">{ph:.0f}%</div>
+                        </div>
+                        <div style="flex:1; text-align:center;">
+                            <div style="font-family:'Bebas Neue',cursive; font-size:1.6rem; color:#F5C842">{score}</div>
+                            <div style="font-size:0.65rem; color:#6B7280">Nul {pd_:.0f}%</div>
+                        </div>
+                        <div style="flex:2; text-align:left;">
+                            <div style="font-size:1.2rem">{flag(away)}</div>
+                            <div style="font-weight:600; font-size:0.85rem; color:{winner_color_a}">{away}</div>
+                            <div style="font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#E8334A">{pa:.0f}%</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:2px; margin-top:8px; height:4px; border-radius:2px; overflow:hidden;">
+                        <div style="width:{ph}%; background:#10B981;"></div>
+                        <div style="width:{pd_}%; background:#4B5563;"></div>
+                        <div style="width:{pa}%; background:#E8334A;"></div>
+                    </div>
+                    <div style="text-align:center; margin-top:8px;">
+                        <span style="background:{'linear-gradient(135deg,#F5C842,#E8334A)' if phase=='final' else '#1F2937'};
+                                     color:{'#000' if phase=='final' else '#F5C842'};
+                                     font-family:'Bebas Neue',cursive; font-size:0.85rem; letter-spacing:1px;
+                                     padding:3px 12px; border-radius:99px;">
+                            ➤ {winner}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if phase == "final" and bracket.get("final"):
+            finalist = bracket["final"][0]
+            st.markdown(f"""
+            <div style="text-align:center; margin-top:24px; padding:24px;
+                        background:linear-gradient(135deg,#0A0E1A,#1a1a0a);
+                        border:2px solid #F5C842; border-radius:16px;">
+                <div style="font-size:0.75rem; color:#6B7280; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">
+                    🏆 CHAMPION PRÉDIT
+                </div>
+                <div style="font-size:4rem">{flag(finalist['winner'])}</div>
+                <div style="font-family:'Bebas Neue',cursive; font-size:2.5rem; color:#F5C842; letter-spacing:3px;">
+                    {finalist['winner']}
+                </div>
+                <div style="font-size:0.8rem; color:#6B7280; margin-top:8px;">
+                    Basé sur le modèle de Poisson v5 + bookmakers Polymarket + expérience WC
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
