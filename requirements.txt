@@ -1,0 +1,16 @@
+# World Cup 2026 Predictor — requirements.txt
+# Python 3.11+
+
+# Interface
+streamlit>=1.35.0
+
+# Data science
+numpy>=1.26.0
+pandas>=2.2.0
+scipy>=1.13.0
+
+# Logging
+loguru>=0.7.0
+
+# Optionnel — améliore les performances Streamlit
+watchdog>=4.0.0
