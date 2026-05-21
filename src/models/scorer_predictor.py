@@ -152,8 +152,74 @@ OFFICIAL_SQUADS = {
 # Ces multiplicateurs corrigent les sous-estimations du dataset
 # ============================================================
 # ============================================================
-# AJUSTEMENTS MANUELS — basés sur les listes officielles WC 2026
-# et la forme récente des joueurs (mai 2026)
+# BUTS SYNTHÉTIQUES — injectés pour les joueurs sous-représentés
+# dans le dataset (peu de capes, nouvelle génération, etc.)
+# Source : stats en club 2024-25 et 2025-26, converti en équivalent
+# international (ratio ~1 but international = 3 buts en club)
+# Ces buts s'ajoutent aux buts historiques AVANT le calcul des ratios
+# Format : {joueur: buts_synthétiques_à_ajouter}
+# ============================================================
+SYNTHETIC_GOALS = {
+    # ── France ────────────────────────────────────────────────
+    # Dembélé : 35 buts club 2024-25 → +11 synthétiques
+    "Ousmane Dembélé":      11,   # Ballon d'Or 2025 — 35 buts PSG
+    # Barcola : 23 buts Ligue 1 → +7 synthétiques
+    "Bradley Barcola":       7,   # meilleur buteur Ligue 1 2024-25
+    # Olise : 17 buts Bayern → +5 synthétiques
+    "Michael Olise":         5,   # 17 buts Bayern 2024-25
+    # Thuram : 25 buts Inter → +8 (déjà dans dataset mais renforcement)
+    "Marcus Thuram":         8,   # 25 buts Inter Milan 2024-25
+    # Mateta : 20 buts Crystal Palace → +6
+    "Jean-Philippe Mateta":  6,   # 20 buts Crystal Palace
+    "Rayan Cherki":          3,
+    "Désiré Doué":           2,
+
+    # ── Espagne ───────────────────────────────────────────────
+    # Yamal : 24 buts Barça 2025-26 → +8 synthétiques
+    "Lamine Yamal":          8,   # 24 buts Barça 2025-26
+    # Nico Williams : très en forme Athletic → +5
+    "Nico Williams":         5,   # 15+ buts Athletic
+    "Dani Olmo":             4,   # en grande forme
+
+    # ── Argentine ─────────────────────────────────────────────
+    # Garnacho : peu de capes mais en forme → +4
+    "Alejandro Garnacho":    4,   # nouvelle star Man United
+
+    # ── Angleterre ────────────────────────────────────────────
+    # Palmer : révélation Chelsea, peu de capes → +6
+    "Cole Palmer":           6,   # révélation Chelsea 2025-26
+    "Phil Foden":            3,
+    "Jude Bellingham":       4,
+
+    # ── Portugal ──────────────────────────────────────────────
+    # Gonçalo Ramos : remplace Jota, buteur titulaire → +5
+    "Gonçalo Ramos":         5,   # buteur principal Portugal
+    "Francisco Conceição":   4,   # très en forme Juventus
+    "Rafael Leão":           3,
+
+    # ── Brésil ────────────────────────────────────────────────
+    # Vinícius : meilleur joueur monde mais sous-représenté → +8
+    "Vinícius Júnior":       8,   # meilleur joueur monde
+    "Endrick":               4,   # nouvelle star
+    "Martinelli":            4,
+    "Matheus Cunha":         3,
+
+    # ── Allemagne ─────────────────────────────────────────────
+    # Wirtz : 30+ buts Leverkusen, peu de capes → +8
+    "Florian Wirtz":         8,   # 30+ buts Leverkusen 2025-26
+    # Musiala : star Bayern → +5
+    "Jamal Musiala":         5,   # star Bayern, peu de buts intl
+
+    # ── Pays-Bas ──────────────────────────────────────────────
+    "Xavi Simons":           4,   # en grande forme
+
+    # ── Maroc ─────────────────────────────────────────────────
+    "Youssef En-Nesyri":     5,   # 20+ buts Fenerbahçe
+}
+
+# ============================================================
+# AJUSTEMENTS MANUELS — multiplicateurs sur les buts ajustés
+# (après injection des buts synthétiques)
 # ============================================================
 PLAYER_BOOST = {
     # ── France (liste officielle Deschamps 14 mai 2026) ──────
@@ -316,12 +382,35 @@ class ScorerPredictor:
                     ~player_stats["scorer"].isin(EXCLUDED_PLAYERS)
                 ]
 
+            # Ajouter les joueurs avec seulement des buts synthétiques
+            # (convoqués mais 0 but dans le dataset depuis 2020)
+            if team in OFFICIAL_SQUADS:
+                existing_scorers = set(player_stats["scorer"].tolist())
+                new_rows = []
+                for p in OFFICIAL_SQUADS[team]:
+                    if p not in existing_scorers and p in SYNTHETIC_GOALS:
+                        new_rows.append({
+                            "scorer": p,
+                            "goals": 0,
+                            "penalties": 0,
+                            "goals_non_pk": 0,
+                        })
+                if new_rows:
+                    player_stats = pd.concat(
+                        [player_stats, pd.DataFrame(new_rows)],
+                        ignore_index=True
+                    )
+
             if player_stats.empty:
                 continue
 
-            # Appliquer les boosts manuels
+            # 1. Injecter les buts synthétiques (joueurs sous-représentés dans dataset)
+            player_stats["synthetic"] = player_stats["scorer"].map(SYNTHETIC_GOALS).fillna(0)
+            player_stats["goals_with_synthetic"] = player_stats["goals"] + player_stats["synthetic"]
+
+            # 2. Appliquer les boosts multiplicateurs
             player_stats["boost"] = player_stats["scorer"].map(PLAYER_BOOST).fillna(1.0)
-            player_stats["goals_adj"] = player_stats["goals"] * player_stats["boost"]
+            player_stats["goals_adj"] = player_stats["goals_with_synthetic"] * player_stats["boost"]
 
             # Calcul du ratio (part des buts de l'équipe)
             total_adj = player_stats["goals_adj"].sum()
