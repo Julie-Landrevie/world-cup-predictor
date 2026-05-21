@@ -257,9 +257,13 @@ def flag(team):
 # CHARGEMENT DES DONNÉES (mis en cache)
 # ============================================================
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_models():
-    """Charge et entraîne tous les modèles — mis en cache."""
+    """
+    Charge et entraîne tous les modèles.
+    cache_resource = partagé entre tous les utilisateurs, persist en mémoire.
+    À vider manuellement si les données changent (bouton sidebar).
+    """
     results     = load_results(min_year=2018)
     goalscorers = load_goalscorers(min_year=2020)
     fixtures    = load_wc2026_fixtures()
@@ -275,14 +279,32 @@ def load_models():
     return match_model, scorer_model, fixtures, all_preds
 
 
-@st.cache_data
-def get_tournament_probs(n_sims=2000):
-    """Monte Carlo — probabilités de remporter le tournoi + données phase finale."""
+@st.cache_data(show_spinner=False, ttl=3600)
+def get_tournament_probs(n_sims=2000, _results_hash=""):
+    """
+    Monte Carlo — probabilités de remporter le tournoi + données phase finale.
+    TTL=1h — se recalcule automatiquement toutes les heures.
+    _results_hash : paramètre qui force le recalcul si les vrais résultats changent.
+    """
     match_model, _, _, _ = load_models()
     state = TournamentState()
+    # Charger les vrais résultats depuis st.session_state si disponibles
+    for r in st.session_state.get("real_results", []):
+        state.add_real_result(r["home"], r["away"], r["home_score"], r["away_score"], r.get("stage", "group"))
     sim   = TournamentSimulator(model=match_model, state=state)
     df, ko_data = sim.run_monte_carlo(n_simulations=n_sims)
     return df, ko_data
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def get_group_stage_probs(_results_hash=""):
+    """Probabilités de groupe — recalcul si vrais résultats changent."""
+    match_model, _, _, _ = load_models()
+    state = TournamentState()
+    for r in st.session_state.get("real_results", []):
+        state.add_real_result(r["home"], r["away"], r["home_score"], r["away_score"], r.get("stage", "group"))
+    sim = TournamentSimulator(model=match_model, state=state)
+    return sim.group_stage_probabilities(n_simulations=1000)
 
 
 # ============================================================
@@ -295,6 +317,78 @@ st.markdown("""
     <div class="hero-sub">Modèle de Poisson · Bookmakers · Monte Carlo · USA · Canada · Mexico</div>
 </div>
 """, unsafe_allow_html=True)
+
+# ============================================================
+# SIDEBAR — Mise à jour des vrais résultats
+# ============================================================
+
+with st.sidebar:
+    st.markdown("## ⚙️ Administration")
+    st.caption("Mise à jour pendant la compétition")
+
+    # Initialiser session_state
+    if "real_results" not in st.session_state:
+        st.session_state.real_results = []
+
+    # Formulaire d'ajout d'un résultat réel
+    with st.expander("➕ Ajouter un vrai résultat", expanded=False):
+        all_teams_sidebar = sorted(set(t for teams in WC2026_GROUPS.values() for t in teams))
+        home_s = st.selectbox("Équipe domicile", all_teams_sidebar, key="sidebar_home")
+        away_s = st.selectbox("Équipe extérieur", [t for t in all_teams_sidebar if t != home_s], key="sidebar_away")
+        col_sh, col_sa = st.columns(2)
+        score_h = col_sh.number_input("Buts domicile", 0, 20, 0, key="sidebar_sh")
+        score_a = col_sa.number_input("Buts extérieur", 0, 20, 0, key="sidebar_sa")
+        stage_s = st.selectbox("Phase", ["group", "r32", "r16", "qf", "sf", "final"], key="sidebar_stage")
+
+        if st.button("✅ Enregistrer ce résultat", use_container_width=True):
+            new_result = {
+                "home": home_s, "away": away_s,
+                "home_score": int(score_h), "away_score": int(score_a),
+                "stage": stage_s,
+            }
+            st.session_state.real_results.append(new_result)
+            # Invalider les caches qui dépendent des résultats
+            get_tournament_probs.clear()
+            get_group_stage_probs.clear()
+            st.success(f"✅ {home_s} {int(score_h)}-{int(score_a)} {away_s} enregistré !")
+            st.rerun()
+
+    # Afficher les résultats enregistrés
+    if st.session_state.real_results:
+        st.markdown(f"**{len(st.session_state.real_results)} résultat(s) enregistré(s) :**")
+        for i, r in enumerate(st.session_state.real_results):
+            col_r, col_del = st.columns([4, 1])
+            col_r.markdown(f"{flag(r['home'])} **{r['home_score']}-{r['away_score']}** {flag(r['away'])}")
+            if col_del.button("🗑️", key=f"del_{i}"):
+                st.session_state.real_results.pop(i)
+                get_tournament_probs.clear()
+                get_group_stage_probs.clear()
+                st.rerun()
+
+        if st.button("🔄 Recalculer avec les vrais résultats", use_container_width=True, type="primary"):
+            get_tournament_probs.clear()
+            get_group_stage_probs.clear()
+            st.rerun()
+
+        if st.button("❌ Effacer tous les résultats", use_container_width=True):
+            st.session_state.real_results = []
+            get_tournament_probs.clear()
+            get_group_stage_probs.clear()
+            st.rerun()
+
+    st.divider()
+    st.markdown("**🔄 Cache**")
+    st.caption("Vider si les fichiers de données ont été mis à jour")
+    if st.button("Vider tous les caches", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.success("Caches vidés !")
+        st.rerun()
+
+    st.divider()
+    st.caption("World Cup 2026 Predictor · Julie Landrevie")
+    st.caption("Modèle de Poisson v5 · Monte Carlo")
+
 
 # Chargement
 with st.spinner("Entraînement du modèle de Poisson..."):
@@ -342,11 +436,12 @@ with tab1:
 
     col_mc, col_book = st.columns([3, 2], gap="large")
 
+    results_hash_mc = str(len(st.session_state.get("real_results", [])))
+    with st.spinner("Simulation en cours (2000 tournois)..."):
+        mc, ko_data = get_tournament_probs(n_sims=2000, _results_hash=results_hash_mc)
+
     with col_mc:
         st.markdown("**📊 Notre modèle**")
-        with st.spinner("Simulation en cours (2000 tournois)..."):
-            mc, ko_data = get_tournament_probs(n_sims=2000)
-
         top20 = mc.head(20)
         for _, row in top20.iterrows():
             team  = row["team"]
@@ -570,15 +665,10 @@ with tab4:
     st.markdown('<div class="section-title">Composition des 12 groupes</div>', unsafe_allow_html=True)
     st.caption("Probabilités de qualification calculées sur 1000 simulations")
 
-    @st.cache_data
-    def get_group_probs():
-        match_model_g, _, _, _ = load_models()
-        state_g = TournamentState()
-        sim_g   = TournamentSimulator(model=match_model_g, state=state_g)
-        return sim_g.group_stage_probabilities(n_simulations=1000)
-
+    # Calcul des probas de groupe — utilise les vrais résultats si disponibles
+    results_hash = str(len(st.session_state.get("real_results", [])))
     with st.spinner("Calcul des probabilités de groupe..."):
-        group_probs = get_group_probs()
+        group_probs = get_group_stage_probs(_results_hash=results_hash)
 
     # Affichage en grille 3 colonnes
     group_keys = list(WC2026_GROUPS.keys())

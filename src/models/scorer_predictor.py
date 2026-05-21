@@ -156,80 +156,95 @@ OFFICIAL_SQUADS = {
 # et la forme récente des joueurs (mai 2026)
 # ============================================================
 PLAYER_BOOST = {
-    # ── France (liste Deschamps 14 mai 2026) ─────────────────
-    "Kylian Mbappé":        1.15,  # capitaine, stars des Bleus
-    "Marcus Thuram":        1.10,  # titulaire indiscutable, prolifique à l'Inter
-    "Ousmane Dembélé":      1.05,  # bon début de saison PSG
-    "Bradley Barcola":      1.10,  # nouvelle star, sous-représenté dataset
-    "Adrien Rabiot":        0.45,  # milieu défensif — rarement buteur
-    "Aurélien Tchouaméni":  0.40,  # milieu défensif
-    "Manu Koné":            0.40,  # milieu défensif
-    "Michael Olise":        1.10,  # en grande forme Bayern
-    "Rayan Cherki":         1.05,  # nouvelle star, peu de capes
-    "Maghnes Akliouche":    1.05,  # surprenant mais présent
+    # ── France (liste officielle Deschamps 14 mai 2026) ──────
+    # Dembélé : Ballon d'Or 2025, 35 buts 2024-25
+    "Ousmane Dembélé":      1.35,  # BALLON D'OR 2025 — 35 buts PSG 2024-25
+    "Kylian Mbappé":        1.20,  # 18 buts Real Madrid mi-saison 2025-26
+    "Marcus Thuram":        1.20,  # 25 buts Inter Milan 2024-25
+    "Bradley Barcola":      1.15,  # 23 buts PSG, meilleur buteur Ligue 1
+    "Jean-Philippe Mateta": 1.10,  # 20 buts Crystal Palace
+    "Michael Olise":        1.10,  # 17 buts Bayern 2024-25
+    "Rayan Cherki":         1.05,
     "Désiré Doué":          1.00,
-    "Jean-Philippe Mateta": 1.05,  # remplace Ekitike blessé
+    "Maghnes Akliouche":    0.95,
+    # Milieux défensifs — malus
+    "Adrien Rabiot":        0.40,
+    "Aurélien Tchouaméni":  0.35,
+    "Manu Koné":            0.35,
+    "Warren Zaïre-Emery":   0.60,
+    "N'Golo Kanté":         0.30,
 
-    # ── Espagne (liste attendue ~25 mai) ─────────────────────
-    "Ferran Torres":        0.90,  # souvent remplaçant
+    # ── Espagne ───────────────────────────────────────────────
+    "Lamine Yamal":         1.30,  # 24 buts Barça 2025-26, 2e Ballon d'Or 2025
+    "Nico Williams":        1.20,  # très en forme Athletic
+    "Dani Olmo":            1.15,
     "Mikel Oyarzabal":      1.05,
-    "Dani Olmo":            1.15,  # en très grande forme
-    "Lamine Yamal":         1.25,  # star mondiale, très sous-représenté dataset
-    "Nico Williams":        1.15,  # idem, peu de données
-    "Álvaro Morata":        0.00,  # retraité — sera filtré par EXCLUDED
     "Mikel Merino":         1.05,
+    "Ferran Torres":        0.85,  # souvent remplaçant
+    "Pedri":                1.05,
+    "Rodri":                0.70,  # milieu défensif
 
-    # ── Argentine (liste préliminaire 55 joueurs, 11 mai) ────
-    "Lionel Messi":         1.05,  # 6e Coupe du monde
-    "Lautaro Martínez":     1.10,  # grand buteur Serie A
-    "Julián Álvarez":       1.15,  # en très grande forme Atlético
-    "Alejandro Garnacho":   1.10,  # nouvelle star, peu de données
+    # ── Argentine ─────────────────────────────────────────────
+    "Julián Álvarez":       1.20,  # en très grande forme Atlético
+    "Lautaro Martínez":     1.10,
+    "Lionel Messi":         1.05,
+    "Alejandro Garnacho":   1.10,
+    "Federico Valverde":    0.80,
 
-    # ── Angleterre (liste Tuchel attendue 22 mai) ────────────
-    "Harry Kane":           1.05,  # capitaine et buteur numéro 1
-    "Bukayo Saka":          1.10,  # titulaire indiscutable
-    "Phil Foden":           1.10,  # sous-représenté dataset
-    "Cole Palmer":          1.20,  # révélation saison, peu de capes
-    "Jude Bellingham":      1.15,  # stars mais peu de buts internationaux
+    # ── Angleterre ────────────────────────────────────────────
+    "Harry Kane":           1.20,  # 19 buts Bayern mi-saison, favori Ballon d'Or 2026
+    "Cole Palmer":          1.20,  # révélation Chelsea
+    "Phil Foden":           1.10,
+    "Bukayo Saka":          1.10,
+    "Jude Bellingham":      1.10,
 
-    # ── Portugal (liste attendue 19 mai) ─────────────────────
-    "Cristiano Ronaldo":    0.80,  # 41 ans, rôle réduit
-    "Bruno Fernandes":      1.10,  # capitaine, très prolifique
-    "Gonçalo Ramos":        1.20,  # meilleur buteur équipe nationale récent
+    # ── Portugal ──────────────────────────────────────────────
+    "Gonçalo Ramos":        1.25,  # buteur principal Portugal
+    "Bruno Fernandes":      1.15,
+    "Francisco Conceição":  1.15,  # très en forme Juventus
     "Rafael Leão":          1.10,
+    "Cristiano Ronaldo":    0.75,  # 41 ans
     "Pedro Neto":           1.05,
 
-    # ── Brésil (liste attendue 18 mai) ───────────────────────
-    "Vinícius Júnior":      1.25,  # meilleur joueur monde, sous-représenté
-    "Neymar":              0.75,  # retour après 2.5 ans absence — incertitude forme
-    "Martinelli":          1.10,  # en grande forme Arsenal
-    "Matheus Cunha":       1.05,  # en grande forme Manchester United
-    "Raphinha":             1.10,  # capitaine, en grande forme Barça
-    "Rodrygo":              1.10,
-    "Richarlison":          1.00,
-    "Endrick":              1.10,  # nouvelle star, peu de capes
+    # ── Brésil ────────────────────────────────────────────────
+    "Vinícius Júnior":      1.30,  # meilleur joueur monde, sous-représenté
+    "Raphinha":             1.15,  # 20+ buts Barça
+    "Richarlison":          1.10,
+    "Neymar":               0.75,  # retour après 2.5 ans absence
+    "Endrick":              1.10,
+    "Martinelli":           1.10,
+    "Matheus Cunha":        1.05,
 
     # ── Allemagne ─────────────────────────────────────────────
+    "Florian Wirtz":        1.30,  # 30+ buts Leverkusen 2025-26
+    "Jamal Musiala":        1.20,  # star Bayern
     "Kai Havertz":          1.10,
-    "Florian Wirtz":        1.25,  # meilleur joueur Bundesliga, peu de données
-    "Jamal Musiala":        1.15,  # star allemande
     "Leroy Sané":           1.00,
 
     # ── Pays-Bas ──────────────────────────────────────────────
     "Cody Gakpo":           1.15,
-    "Xavi Simons":          1.10,
+    "Xavi Simons":          1.15,
     "Donyell Malen":        1.05,
 
     # ── Norvège ───────────────────────────────────────────────
-    "Erling Haaland":       1.10,  # meilleur buteur monde
+    "Erling Haaland":       1.20,  # 19+ buts Man City 2025-26
     "Alexander Sørloth":    1.05,
 
-    # ── Autres favoris ────────────────────────────────────────
-    "Pedri":                1.10,  # Espagne, milieu créateur
-    "Rodri":                1.05,  # Espagne, milieu défensif
-    "Romelu Lukaku":        1.05,  # Belgique, toujours présent
-    "Luis Díaz":            1.10,  # Colombia, très en forme Liverpool
-    "Federico Valverde":    1.05,  # Argentine, milieu
+    # ── Colombie ──────────────────────────────────────────────
+    "Luis Díaz":            1.15,
+    "James Rodríguez":      1.00,
+
+    # ── Belgique ──────────────────────────────────────────────
+    "Romelu Lukaku":        1.05,
+    "Dodi Lukebakio":       1.05,
+
+    # ── Maroc ─────────────────────────────────────────────────
+    "Youssef En-Nesyri":    1.10,  # 20+ buts Fenerbahçe
+    "Achraf Hakimi":        1.00,
+
+    # ── Japon ─────────────────────────────────────────────────
+    "Ayase Ueda":           1.10,
+    "Takumi Minamino":      1.05,
 }
 
 # ============================================================

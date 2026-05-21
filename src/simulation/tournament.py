@@ -712,23 +712,24 @@ class TournamentSimulator:
         # ── Bracket officiel FIFA — Seizièmes (R32) ───────────
         # Source : wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
         r32_pairs = [
-            # Match : home,        away,         id
-            (R["A"],    R["B"],    "M73"),   # 2A vs 2B
-            (W["E"],    t3("F"),   "M74"),   # 1E vs 3F
-            (W["F"],    R["C"],    "M75"),   # 1F vs 2C
-            (W["C"],    R["F"],    "M76"),   # 1C vs 2F
-            (W["I"],    t3("A"),   "M77"),   # 1I vs 3A
-            (R["E"],    R["I"],    "M78"),   # 2E vs 2I
-            (W["A"],    t3("C"),   "M79"),   # 1A vs 3C
-            (W["L"],    t3("E"),   "M80"),   # 1L vs 3E
-            (W["D"],    t3("B"),   "M81"),   # 1D vs 3B
-            (W["G"],    t3("G"),   "M82"),   # 1G vs 3G → Sénégal
-            (R["K"],    R["L"],    "M83"),   # 2K vs 2L
-            (W["H"],    R["J"],    "M84"),   # 1H vs 2J
-            (W["B"],    t3("I"),   "M85"),   # 1B vs 3I → Algérie
-            (W["J"],    R["H"],    "M86"),   # 1J vs 2H
-            (W["K"],    t3("L"),   "M87"),   # 1K vs 3L → Ghana
-            (R["D"],    R["G"],    "M88"),   # 2D vs 2G
+            # ── COTE GAUCHE du bracket FIFA ──────────────────
+            (W["E"],    t3("A"),   "M73"),   # 1E vs 3ABCDF
+            (W["I"],    t3("C"),   "M74"),   # 1I vs 3CDFGH  (France ici)
+            (R["A"],    R["B"],    "M75"),   # 2A vs 2B
+            (W["F"],    R["C"],    "M76"),   # 1F vs 2C
+            (R["K"],    R["L"],    "M77"),   # 2K vs 2L
+            (W["H"],    R["J"],    "M78"),   # 1H vs 2J
+            (W["D"],    t3("B"),   "M79"),   # 1D vs 3BEFJ
+            (W["G"],    t3("E"),   "M80"),   # 1G vs 3AEHJ
+            # ── COTE DROIT du bracket FIFA ───────────────────
+            (W["C"],    R["F"],    "M81"),   # 1C vs 2F
+            (R["E"],    R["I"],    "M82"),   # 2E vs 2I  (Norvege ici)
+            (W["A"],    t3("F"),   "M83"),   # 1A vs 3CEFHI
+            (W["L"],    t3("G"),   "M84"),   # 1L vs 3EHIJK
+            (W["J"],    R["H"],    "M85"),   # 1J vs 2H
+            (R["D"],    R["G"],    "M86"),   # 2D vs 2G
+            (W["B"],    t3("I"),   "M87"),   # 1B vs 3EFGIJ
+            (W["K"],    t3("L"),   "M88"),   # 1K vs 3DEJL
         ]
 
         def predict_match(home, away, phase, match_id=""):
@@ -766,15 +767,18 @@ class TournamentSimulator:
         # M91 = W(M77) vs W(M78)  M92 = W(M79) vs W(M80)
         # M93 = W(M81) vs W(M82)  M94 = W(M83) vs W(M84)
         # M95 = W(M85) vs W(M86)  M96 = W(M87) vs W(M88)
+        # R16 : les gagnants s'enchainent selon le bracket
+        # Cote gauche : M73/74 -> M89, M75/76 -> M90, M77/78 -> M91, M79/80 -> M92
+        # Cote droit  : M81/82 -> M93, M83/84 -> M94, M85/86 -> M95, M87/88 -> M96
         r16_pairs = [
-            (r32_w[0],  r32_w[1],  "M89"),
-            (r32_w[2],  r32_w[3],  "M90"),
-            (r32_w[4],  r32_w[5],  "M91"),
-            (r32_w[6],  r32_w[7],  "M92"),
-            (r32_w[8],  r32_w[9],  "M93"),
-            (r32_w[10], r32_w[11], "M94"),
-            (r32_w[12], r32_w[13], "M95"),
-            (r32_w[14], r32_w[15], "M96"),
+            (r32_w[0],  r32_w[1],  "M89"),  # W(M73) vs W(M74) - cote gauche haut
+            (r32_w[2],  r32_w[3],  "M90"),  # W(M75) vs W(M76)
+            (r32_w[4],  r32_w[5],  "M91"),  # W(M77) vs W(M78)
+            (r32_w[6],  r32_w[7],  "M92"),  # W(M79) vs W(M80) - cote gauche bas
+            (r32_w[8],  r32_w[9],  "M93"),  # W(M81) vs W(M82) - cote droit haut
+            (r32_w[10], r32_w[11], "M94"),  # W(M83) vs W(M84)
+            (r32_w[12], r32_w[13], "M95"),  # W(M85) vs W(M86)
+            (r32_w[14], r32_w[15], "M96"),  # W(M87) vs W(M88) - cote droit bas
         ]
         r16_w = [predict_match(h, a, "r16", mid) for h, a, mid in r16_pairs]
 
