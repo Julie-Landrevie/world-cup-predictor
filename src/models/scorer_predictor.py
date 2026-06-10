@@ -61,7 +61,7 @@ EXCLUDED_PLAYERS = {
 
     # ── Blessés / non convoqués ───────────────────────────────
     "Raheem Sterling",     # non convoqué Angleterre
-    "Marcus Rashford",     # non convoqué Angleterre (Tuchel)
+    "Marcus Rashford",     # convoqué Angleterre — on le garde dans la liste
     # Neymar convoqué par le Brésil (18 mai 2026) — NE PAS EXCLURE
     "Hugo Ekitike",        # blessé tendon Achille, remplacé par Mateta
     "Rodrygo",             # absent liste Brésil — blessé (surprise Ancelotti)
@@ -143,8 +143,162 @@ OFFICIAL_SQUADS = {
         "Michael Gregoritsch", "Marko Arnautović",
         "Andreas Weimann", "Guido Burgstaller",
     },
-    # Autres équipes à ajouter au fur et à mesure des annonces officielles
-    # Portugal (19 mai), Espagne (25 mai), Angleterre (22 mai), Allemagne (21 mai)
+    # ── Espagne — liste officielle ────────────────────────────
+    "Spain": {
+        "Unai Simón", "David Raya", "Alex Remiro",
+        "Dani Carvajal", "Jesús Navas", "Marc Cucurella",
+        "Alejandro Grimaldo", "Robin Le Normand", "Aymeric Laporte",
+        "Dani Vivian", "Pau Cubarsí",
+        "Gavi", "Pedri", "Rodri", "Martín Zubimendi", "Fabián Ruiz",
+        "Alex Baena", "Mikel Merino",
+        "Lamine Yamal", "Nico Williams", "Dani Olmo", "Ferran Torres",
+        "Mikel Oyarzabal", "Yeremy Pino", "Borja Iglesias", "Víctor Muñoz",
+    },
+
+    # ── Argentine — liste officielle (28 mai 2026) ───────────
+    "Argentina": {
+        "Emiliano Martínez", "Gerónimo Rulli", "Juan Musso",
+        "Leonardo Balerdi", "Gonzalo Montiel", "Nicolás Tagliafico",
+        "Lisandro Martínez", "Cristian Romero", "Nicolás Otamendi",
+        "Facundo Medina", "Nahuel Molina",
+        "Rodrigo De Paul", "Alexis Mac Allister", "Enzo Fernández",
+        "Leandro Paredes", "Giovani Lo Celso", "Alejandro Garnacho",
+        "Thiago Almada",
+        "Lionel Messi", "Lautaro Martínez", "Julián Álvarez",
+        "Nicolás González", "Paulo Dybala", "Facundo Colidio",
+        "Valentín Castellanos", "Ángel Correa",
+    },
+
+    # ── Angleterre — liste officielle Tuchel (22 mai 2026) ───
+    "England": {
+        "Jordan Pickford", "Aaron Ramsdale", "Dean Henderson",
+        "Trent Alexander-Arnold", "Reece James", "Kieran Trippier",
+        "John Stones", "Marc Guéhi", "Levi Colwill",
+        "Harry Maguire", "Luke Shaw", "Ben Chilwell",
+        "Declan Rice", "Jude Bellingham", "Kobbie Mainoo",
+        "Conor Gallagher", "Adam Wharton",
+        "Harry Kane", "Bukayo Saka", "Phil Foden", "Cole Palmer",
+        "Ollie Watkins", "Anthony Gordon", "Jarrod Bowen",
+        "Eberechi Eze", "Noni Madueke",
+    },
+
+    # ── Allemagne — liste officielle Nagelsmann (21 mai 2026) ─
+    "Germany": {
+        "Manuel Neuer", "Marc-André ter Stegen", "Oliver Baumann",
+        "Joshua Kimmich", "Benjamin Henrichs", "David Raum",
+        "Antonio Rüdiger", "Jonathan Tah", "Waldemar Anton",
+        "Nico Schlotterbeck", "Maximilian Mittelstädt",
+        "Robert Andrich", "Pascal Groß", "Florian Wirtz",
+        "Jamal Musiala", "Ilkay Gündoğan", "Assan Ouédraogo",
+        "Kai Havertz", "Leroy Sané", "Serge Gnabry",
+        "Niclas Füllkrug", "Tim Kleindienst", "Deniz Undav",
+    },
+
+    # ── Portugal — liste officielle (19 mai 2026) ────────────
+    "Portugal": {
+        "Diogo Costa", "José Sá", "Rui Patrício",
+        "João Cancelo", "Diogo Dalot", "Rúben Dias", "Gonçalo Inácio",
+        "Nuno Mendes", "Renato Veiga", "Nélson Semedo", "Tomás Araújo",
+        "Bruno Fernandes", "João Neves", "Bernardo Silva",
+        "Vitinha", "Rúben Neves", "Samu Costa",
+        "Cristiano Ronaldo", "Rafael Leão", "Pedro Neto",
+        "Francisco Conceição", "João Félix", "Gonçalo Ramos",
+        "Francisco Trincão", "Gonçalo Guedes",
+    },
+
+    # ── Norvège — liste officielle Solbakken (21 mai 2026) ───
+    "Norway": {
+        "Ørjan Nyland", "Matz Sels", "Kristoffer Klaesson",
+        "Birger Meling", "Leo Skiri Østigård",
+        "Andreas Hanche-Olsen", "Stefan Strandberg",
+        "Stian Gregersen", "Julian Ryerson",
+        "Martin Ødegaard", "Sander Berge", "Mathias Normann",
+        "Fredrik Aursnes", "Patrick Berg",
+        "Erling Haaland", "Alexander Sørloth", "Mohamed Elyounoussi",
+        "Jørgen Strand Larsen", "Antonio Nusa", "Håvard Nielsen",
+    },
+
+    # ── Sénégal ───────────────────────────────────────────────
+    "Senegal": {
+        "Edouard Mendy", "Seny Dieng", "Alfred Gomis",
+        "Kalidou Koulibaly", "Abdou Diallo", "Formose Mendy",
+        "Ismail Jakobs", "Pape Abou Cissé",
+        "Cheikhou Kouyaté", "Nampalys Mendy", "Lamine Camara",
+        "Pape Matar Sarr", "Pathé Ciss",
+        "Sadio Mané", "Ismaïla Sarr", "Habib Diallo",
+        "Nicolas Jackson", "Boulaye Dia", "Krepin Diatta",
+        "Iliman Ndiaye",
+    },
+
+    # ── Maroc — liste officielle (26 mai 2026) ────────────────
+    "Morocco": {
+        "Yassine Bounou", "Munir Mohamedi", "Ahmed Reda Tagnaouti",
+        "Achraf Hakimi", "Nayef Aguerd", "Noussair Mazraoui",
+        "Youssef Belammari", "Chadi Riad", "Issa Diop",
+        "Zakaria El Ouahdi", "Redouane Halhal",
+        "Sofyan Amrabat", "Azzedine Ounahi", "Bilal El Khannous",
+        "Ismail Saibari", "Ayyoub Bouaddi",
+        "Ayoub El Kaabi", "Soufiane Rahimi", "Brahim Díaz",
+        "Abde Ezzalzouli", "Youssef En-Nesyri", "Hakim Ziyech",
+    },
+
+    # ── Colombie ──────────────────────────────────────────────
+    "Colombia": {
+        "Camilo Vargas", "David Ospina", "Álvaro Montero",
+        "Daniel Muñoz", "Johan Mojica", "Carlos Cuesta",
+        "Yerry Mina", "Davinson Sánchez", "Jhon Lucumí",
+        "Jefferson Lerma", "Matheus Uribe", "Richard Ríos",
+        "James Rodríguez", "Juan Cuadrado",
+        "Luis Díaz", "Jhon Durán", "Rafael Santos Borré",
+        "Cucho Hernández",
+    },
+
+    # ── Belgique ──────────────────────────────────────────────
+    "Belgium": {
+        "Koen Casteels", "Thomas Kaminski",
+        "Zeno Debast", "Jan Vertonghen", "Wout Faes",
+        "Maxim De Cuyper", "Arthur Theate", "Thomas Meunier",
+        "Kevin De Bruyne", "Amadou Onana", "Youri Tielemans",
+        "Leandro Trossard",
+        "Romelu Lukaku", "Lois Openda", "Johan Bakayoko",
+        "Dodi Lukebakio", "Jeremy Doku", "Charles De Ketelaere",
+    },
+
+    # ── Pays-Bas ──────────────────────────────────────────────
+    "Netherlands": {
+        "Bart Verbruggen", "Mark Flekken", "Remko Pasveer",
+        "Virgil van Dijk", "Denzel Dumfries", "Nathan Aké",
+        "Jurriën Timber", "Matthijs de Ligt", "Stefan de Vrij",
+        "Tijjani Reijnders", "Ryan Gravenberch", "Frenkie de Jong",
+        "Cody Gakpo", "Xavi Simons",
+        "Noa Lang", "Wout Weghorst", "Brian Brobbey",
+        "Steven Bergwijn", "Donyell Malen",
+    },
+
+    # ── Algérie — liste officielle (31 mai 2026) ──────────────
+    "Algeria": {
+        "Luca Zidane", "Oussama Benbot", "Melvin Mastil",
+        "Aïssa Mandi", "Ramy Bensebaini", "Rayan Aït-Nouri",
+        "Jaouen Hadjam", "Rafik Belghali", "Zinedine Belaïd",
+        "Achref Abada", "Samir Chergui",
+        "Nabil Bentaleb", "Ramiz Zerrouki", "Hicham Boudaoui",
+        "Farès Chaïbi", "Houssem Aouar", "Ibrahim Maza",
+        "Yacine Titraoui",
+        "Riyad Mahrez", "Mohamed Amoura", "Amine Gouiri",
+        "Anis Hadj Moussa", "Adil Boulbina", "Nadhir Benbouali",
+        "Farès Ghedjemis",
+    },
+
+    # ── Croatie ───────────────────────────────────────────────
+    "Croatia": {
+        "Dominik Livaković", "Ivica Ivušić", "Lovre Kalinić",
+        "Joško Gvardiol", "Josip Stanišić", "Martin Erlić",
+        "Borna Sosa", "Josip Šutalo",
+        "Luka Modrić", "Mateo Kovačić", "Marcelo Brozović",
+        "Mario Pašalić", "Lovro Majer", "Luka Sučić",
+        "Andrej Kramarić", "Marko Pjaca", "Bruno Petković",
+        "Petar Sučić",
+    },
 }
 
 # ============================================================
@@ -224,6 +378,8 @@ SYNTHETIC_GOALS = {
 PLAYER_BOOST = {
     # ── France (liste officielle Deschamps 14 mai 2026) ──────
     # Dembélé : Ballon d'Or 2025, 35 buts 2024-25
+    # France 1-2 Côte d'Ivoire (amical 4 juin) — défaite surprise
+    # mais équipe remaniée, pas d'inquiétude majeure
     "Ousmane Dembélé":      1.35,  # BALLON D'OR 2025 — 35 buts PSG 2024-25
     "Kylian Mbappé":        1.20,  # 18 buts Real Madrid mi-saison 2025-26
     "Marcus Thuram":        1.20,  # 25 buts Inter Milan 2024-25
@@ -276,7 +432,7 @@ PLAYER_BOOST = {
     "Vinícius Júnior":      1.30,  # meilleur joueur monde, sous-représenté
     "Raphinha":             1.15,  # 20+ buts Barça
     "Richarlison":          1.10,
-    "Neymar":               0.75,  # retour après 2.5 ans absence
+    "Neymar":               0.50,  # blessé lors des amicaux — incertain WC
     "Endrick":              1.10,
     "Martinelli":           1.10,
     "Matheus Cunha":        1.05,
@@ -286,14 +442,25 @@ PLAYER_BOOST = {
     "Jamal Musiala":        1.20,  # star Bayern
     "Kai Havertz":          1.10,
     "Leroy Sané":           1.00,
+    # Thomas Müller retraité international — exclu via OFFICIAL_SQUADS
 
     # ── Pays-Bas ──────────────────────────────────────────────
     "Cody Gakpo":           1.15,
     "Xavi Simons":          1.15,
     "Donyell Malen":        1.05,
 
+    # ── Canada ────────────────────────────────────────────────
+    "Jonathan David":       1.20,  # 39 buts en sélection, Juventus
+    "Alphonso Davies":      0.60,  # défenseur mais marque
+    "Cyle Larin":           1.05,  # 30 buts en sélection
+
+    # ── Norvège ───────────────────────────────────────────────
+    "Jonathan David":       1.20,  # 39 buts sélection, Juventus
+    "Cyle Larin":           1.05,  # 30 buts sélection
+
     # ── Norvège ───────────────────────────────────────────────
     "Erling Haaland":       1.20,  # 19+ buts Man City 2025-26
+    "Martin Ødegaard":      0.80,  # milieu créateur mais peu de buts
     "Alexander Sørloth":    1.05,
 
     # ── Colombie ──────────────────────────────────────────────
