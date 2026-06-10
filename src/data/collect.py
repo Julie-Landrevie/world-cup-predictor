@@ -75,8 +75,34 @@ def load_results(min_year: int = 1990) -> pd.DataFrame:
     # Filtre temporel
     df_played = df_played[df_played["date"].dt.year >= min_year]
 
-    logger.success(f"✅ {len(df_played)} matchs chargés ({min_year} → aujourd'hui)")
+    # Enrichir avec les matchs amicaux pre-WC 2026
+    # Poids Friendly = 0.2 dans le modèle — impact limité mais signal récent
+    friendlies = load_recent_friendlies()
+    if not friendlies.empty:
+        df_played = pd.concat([df_played, friendlies], ignore_index=True)
+        df_played = df_played.sort_values("date").reset_index(drop=True)
+        df_played = df_played.drop_duplicates(subset=["date","home_team","away_team"])
+
+    logger.success(f"✅ {len(df_played)} matchs chargés ({min_year} → aujourd'hui, amicaux pre-WC inclus)")
     return df_played
+
+
+def load_recent_friendlies(data_dir: str = "data/raw") -> pd.DataFrame:
+    """
+    Charge les matchs amicaux pre-WC 2026 (mai-juin 2026).
+    59 matchs joués entre le 26 mai et le 10 juin 2026.
+    Ces résultats affinent les forces des équipes dans le modèle Poisson.
+    """
+    path = Path(data_dir) / "friendlies_2026.csv"
+    if not path.exists():
+        logger.warning(f"Fichier amicaux non trouvé : {path}")
+        return pd.DataFrame()
+    df = pd.read_csv(path, parse_dates=["date"])
+    df["home_score"] = pd.to_numeric(df["home_score"], errors="coerce")
+    df["away_score"] = pd.to_numeric(df["away_score"], errors="coerce")
+    df = df.dropna(subset=["home_score", "away_score"])
+    logger.success(f"✅ {len(df)} matchs amicaux pre-WC 2026 chargés")
+    return df
 
 
 def load_wc2026_fixtures() -> pd.DataFrame:
