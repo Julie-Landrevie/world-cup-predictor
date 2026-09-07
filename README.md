@@ -4,7 +4,7 @@
 
 Application Streamlit de prédiction pour la Coupe du Monde 2026 (USA · Canada · Mexique, 11 juin – 19 juillet 2026).
 
-🔗 **[Voir l'application en ligne](https://world-cup-predictor.streamlit.app)** *(lien à mettre à jour)*
+🔗 **[Voir l'application en ligne](https://worldcup-2026-predictor.streamlit.app)** 
 
 ---
 
