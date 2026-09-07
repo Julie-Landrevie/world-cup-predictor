@@ -570,14 +570,17 @@ with tab3:
     st.caption("Buts attendus sur l'ensemble du tournoi (groupes + phase finale) · 500 simulations Monte Carlo")
 
     @st.cache_data
-    def get_full_scorer_rankings():
+    def get_full_scorer_rankings(_results_hash=""):
         match_model, scorer_model_c, _, _ = load_models()
         state = TournamentState()
-        sim   = TournamentSimulator(model=match_model, state=state)
+        for r in st.session_state.get("real_results", []):
+            state.add_real_result(r["home"], r["away"], r["home_score"], r["away_score"], r.get("stage", "group"))
+        sim = TournamentSimulator(model=match_model, state=state)
         return sim.run_scorer_monte_carlo(scorer_model_c, n_simulations=500)
 
+    results_hash_scorers = str(len(st.session_state.get("real_results", [])))
     with st.spinner("Simulation des buteurs sur le tournoi complet..."):
-        full_scorers = get_full_scorer_rankings()
+        full_scorers = get_full_scorer_rankings(_results_hash=results_hash_scorers)
 
     col_full, col_team = st.columns([3, 2], gap="large")
 
@@ -808,14 +811,17 @@ with tab6:
     """, unsafe_allow_html=True)
 
     @st.cache_data
-    def get_most_likely_bracket():
+    def get_most_likely_bracket(_results_hash=""):
         match_model_b, scorer_model_b, _, _ = load_models()
         state_b = TournamentState()
-        sim_b   = TournamentSimulator(model=match_model_b, state=state_b)
+        for r in st.session_state.get("real_results", []):
+            state_b.add_real_result(r["home"], r["away"], r["home_score"], r["away_score"], r.get("stage", "group"))
+        sim_b = TournamentSimulator(model=match_model_b, state=state_b)
         return sim_b.simulate_most_likely_bracket(scorer_model=scorer_model_b)
 
+    results_hash_bracket = str(len(st.session_state.get("real_results", [])))
     with st.spinner("Calcul du bracket le plus probable..."):
-        bracket = get_most_likely_bracket()
+        bracket = get_most_likely_bracket(_results_hash=results_hash_bracket)
 
     PHASE_NAMES = {
         "r32":   ("⚔️ Seizièmes de finale — Round of 32", 4),
