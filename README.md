@@ -50,7 +50,7 @@ Application Streamlit de prédiction pour la Coupe du Monde 2026 (USA · Canada 
 ### Simulation Monte Carlo
 - **2 000 simulations** du tournoi complet
 - Bracket officiel FIFA WC 2026 (Annexe C — 50 combinaisons des meilleurs 3es)
-- Résultats : Espagne 24.8%, France 21.1%, Angleterre 13.4%, Argentine 10.7%
+- Résultats : Espagne 24.8%, France 21.1%, Angleterre 13.4%, Argentine 10.7% (exécution de mai 2026 ; les probabilités varient d'environ 1 à 2 points d'une série de 2 000 simulations à l'autre)
 
 ### Prédiction des buteurs
 - **Base** : ratios historiques par joueur depuis 2020 (7 739 buts)
