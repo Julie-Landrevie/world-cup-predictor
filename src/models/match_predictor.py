@@ -291,6 +291,7 @@ class PoissonPredictor:
         self.att_    = {t: att[i]  for i, t in enumerate(teams)}
         self.def_    = {t: deff[i] for i, t in enumerate(teams)}
         self.fitted_ = True
+        self._pred_cache = {}   # prédictions mises en mémoire (voir predict_score)
         logger.success(f"✅ Modèle vectorisé entraîné — mu={self.mu_:.3f}")
 
         # Log des favoris
@@ -300,8 +301,20 @@ class PoissonPredictor:
         return self
 
     def predict_score(self, home, away, neutral=True, max_goals=8):
+        """
+        Prédiction d'un match. Le résultat ne dépend que des paramètres ajustés :
+        on le garde en mémoire, car les simulations de Monte-Carlo redemandent
+        les mêmes affiches des milliers de fois (c'était l'essentiel du temps de calcul).
+        """
         if not self.fitted_:
             raise RuntimeError("Lance fit() d'abord.")
+        cache = self.__dict__.setdefault("_pred_cache", {})
+        key = (home, away, bool(neutral), max_goals)
+        if key not in cache:
+            cache[key] = self._predict_score_uncached(home, away, neutral, max_goals)
+        return dict(cache[key])
+
+    def _predict_score_uncached(self, home, away, neutral=True, max_goals=8):
         att_h = self.att_.get(home, get_fifa_score(home))
         def_h = self.def_.get(home, 1.0)
         att_a = self.att_.get(away, get_fifa_score(away))
@@ -311,10 +324,8 @@ class PoissonPredictor:
         lam_h = self.mu_ * att_h * def_a * hf
         lam_a = self.mu_ * att_a * def_h
 
-        score_matrix = np.zeros((max_goals+1, max_goals+1))
-        for h in range(max_goals+1):
-            for a in range(max_goals+1):
-                score_matrix[h,a] = poisson.pmf(h, lam_h) * poisson.pmf(a, lam_a)
+        goals = np.arange(max_goals + 1)
+        score_matrix = np.outer(poisson.pmf(goals, lam_h), poisson.pmf(goals, lam_a))
         score_matrix /= score_matrix.sum()
 
         idx   = np.unravel_index(score_matrix.argmax(), score_matrix.shape)

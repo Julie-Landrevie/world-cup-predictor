@@ -823,6 +823,12 @@ class TournamentSimulator:
         logger.info(f"🎲 Simulation buteurs ({n_simulations} tournois complets)...")
 
         # Accumuler les buts attendus par joueur
+        # Buteurs et ratios de chaque équipe, lus une seule fois (au lieu d'un iterrows()
+        # pandas à chaque match simulé, qui prenait l'essentiel du temps de calcul)
+        scorer_lists = {
+            team: list(zip(df_t["scorer"].tolist(), df_t["ratio"].tolist()))
+            for team, df_t in scorer_model.team_scorers_.items()
+        }
         player_goals = {}  # {(team, scorer): total_expected}
         player_matches = {}  # {(team, scorer): nb_matchs}
 
@@ -842,10 +848,10 @@ class TournamentSimulator:
                     pred = self.model.predict_score(home, away, neutral=True)
                     for team, exp_g in [(home, pred["expected_home"]),
                                         (away, pred["expected_away"])]:
-                        if team in scorer_model.team_scorers_:
-                            for _, p in scorer_model.team_scorers_[team].iterrows():
-                                key = (team, p["scorer"])
-                                contrib = exp_g * p["ratio"]
+                        if team in scorer_lists:
+                            for scorer, ratio in scorer_lists[team]:
+                                key = (team, scorer)
+                                contrib = exp_g * ratio
                                 player_goals[key] = player_goals.get(key, 0) + contrib
                                 player_matches[key] = player_matches.get(key, 0) + 1
 
@@ -886,10 +892,10 @@ class TournamentSimulator:
                 pred = self.model.predict_score(home, away, neutral=True)
                 for team, exp_g in [(home, pred["expected_home"]),
                                     (away, pred["expected_away"])]:
-                    if team in scorer_model.team_scorers_:
-                        for _, p in scorer_model.team_scorers_[team].iterrows():
-                            key = (team, p["scorer"])
-                            contrib = exp_g * p["ratio"]
+                    if team in scorer_lists:
+                        for scorer, ratio in scorer_lists[team]:
+                            key = (team, scorer)
+                            contrib = exp_g * ratio
                             player_goals[key] = player_goals.get(key, 0) + contrib
                             player_matches[key] = player_matches.get(key, 0) + 1
                 return self._simulate_match_ko(home, away, stage)
