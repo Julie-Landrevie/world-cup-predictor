@@ -1,231 +1,49 @@
 """
-app.py — World Cup 2026 Predictor
-Interface Streamlit complète
+app.py — World Cup 2026 Predictor (français / anglais, clair / sombre)
+Charte commune : jl_ui.py et .streamlit/config.toml.
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
 import sys
 from pathlib import Path
 
+import streamlit as st
+
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.data.collect import load_results, load_goalscorers, load_wc2026_fixtures
-from src.models.match_predictor import PoissonPredictor, BOOKMAKER_PROBS
-from src.models.scorer_predictor import ScorerPredictor
-from src.simulation.tournament import TournamentSimulator, TournamentState, WC2026_GROUPS
+from jl_ui import footer, fr_num, header, kpi, note, setup, t  # noqa: E402
 
-# ============================================================
-# CONFIG PAGE
-# ============================================================
+setup("World Cup 2026 Predictor — Julie Landrevie", "World Cup 2026 Predictor — Julie Landrevie", icon="🏆")
 
-st.set_page_config(
-    page_title="World Cup 2026 Predictor",
-    page_icon="🏆",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+import pandas as pd  # noqa: E402
+from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+from src.data.collect import load_goalscorers, load_results, load_wc2026_fixtures  # noqa: E402
+from src.models.match_predictor import BOOKMAKER_PROBS, PoissonPredictor  # noqa: E402
+from src.models.scorer_predictor import ScorerPredictor  # noqa: E402
+from src.simulation.tournament import WC2026_GROUPS, TournamentSimulator, TournamentState  # noqa: E402
 
-:root {
-    --gold:    #F5C842;
-    --red:     #E8334A;
-    --dark:    #0A0E1A;
-    --darker:  #060910;
-    --card:    #111827;
-    --border:  #1F2937;
-    --text:    #F9FAFB;
-    --muted:   #6B7280;
-    --green:   #10B981;
-}
-
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--darker);
-    color: var(--text);
-}
-
-/* Hero */
-.hero {
-    background: linear-gradient(135deg, #0A0E1A 0%, #1a0a2e 50%, #0A0E1A 100%);
-    border-bottom: 1px solid var(--gold);
-    padding: 40px 32px 32px;
-    margin-bottom: 32px;
-    position: relative;
-    overflow: hidden;
-}
-.hero::before {
-    content: "2026";
-    position: absolute;
-    right: -20px;
-    top: -20px;
-    font-family: 'Bebas Neue', cursive;
-    font-size: 200px;
-    color: rgba(245,200,66,0.04);
-    pointer-events: none;
-    line-height: 1;
-}
-.hero-title {
-    font-family: 'Bebas Neue', cursive;
-    font-size: 3.5rem;
-    color: var(--gold);
-    letter-spacing: 3px;
-    line-height: 1;
-    margin: 0;
-}
-.hero-sub {
-    font-size: 0.9rem;
-    color: var(--muted);
-    margin-top: 8px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-/* Cards */
-.stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-}
-.stat-value {
-    font-family: 'Bebas Neue', cursive;
-    font-size: 2.4rem;
-    color: var(--gold);
-    line-height: 1;
-}
-.stat-label {
-    font-size: 0.72rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 4px;
-}
-
-/* Section title */
-.section-title {
-    font-family: 'Bebas Neue', cursive;
-    font-size: 1.4rem;
-    color: var(--gold);
-    letter-spacing: 2px;
-    border-left: 3px solid var(--red);
-    padding-left: 12px;
-    margin: 28px 0 16px;
-}
-
-/* Match card */
-.match-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-/* Probability bar */
-.prob-bar-container {
-    display: flex;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    margin: 8px 0;
-}
-.prob-home { background: var(--green); }
-.prob-draw { background: var(--muted); }
-.prob-away { background: var(--red); }
-
-/* Team badge */
-.team-flag {
-    font-size: 1.8rem;
-    line-height: 1;
-}
-
-/* Group table */
-.group-header {
-    font-family: 'Bebas Neue', cursive;
-    font-size: 1.1rem;
-    color: var(--gold);
-    letter-spacing: 2px;
-    padding: 8px 0 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-}
-
-/* Winner badge */
-.winner-badge {
-    background: linear-gradient(135deg, #F5C842, #E8334A);
-    color: #000;
-    font-family: 'Bebas Neue', cursive;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-    padding: 3px 10px;
-    border-radius: 99px;
-    display: inline-block;
-}
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    gap: 0;
-}
-.stTabs [data-baseweb="tab"] {
-    font-family: 'Bebas Neue', cursive;
-    letter-spacing: 1.5px;
-    font-size: 1rem;
-    color: var(--muted) !important;
-    border-radius: 0;
-    padding: 12px 20px;
-}
-.stTabs [aria-selected="true"] {
-    color: var(--gold) !important;
-    border-bottom: 2px solid var(--gold) !important;
-}
-
-/* Dataframe */
-[data-testid="stDataFrame"] {
-    background: var(--card) !important;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] { background: var(--darker); }
-
-/* Metric */
-div[data-testid="metric-container"] {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-}
-div[data-testid="metric-container"] label {
-    color: var(--muted) !important;
-    font-size: 0.72rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-div[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    color: var(--gold) !important;
-    font-family: 'Bebas Neue', cursive !important;
-    font-size: 1.8rem !important;
-}
-
-/* Hide Streamlit chrome */
-#MainMenu { visibility: hidden; }
-footer    { visibility: hidden; }
-.stDeployButton { display: none; }
-</style>
-""", unsafe_allow_html=True)
+# Encadrés : couleurs de la charte via les variables CSS de jl_ui (suivent le thème clair / sombre)
+st.markdown("""<style>
+.wc-card{background:var(--jl-card);border:1px solid var(--jl-grid);border-radius:10px;padding:10px 14px;margin-bottom:8px;}
+.wc-card.hl{border-color:var(--jl-rust);}
+.wc-num{font-family:'DM Serif Display',Georgia,serif;color:var(--jl-ink);}
+.wc-small{font-size:0.75rem;color:var(--jl-ink2);}
+.wc-bar{height:6px;background:var(--jl-grid);border-radius:3px;overflow:hidden;}
+.wc-bar > div{height:6px;background:var(--jl-teal);}
+.wc-3{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin-top:8px;}
+</style>""", unsafe_allow_html=True)
 
 
-# ============================================================
+def pct(x, dec=1):
+    return fr_num(x, dec, pct=True)
+
+
+def three_bar(ph, pdraw, pa):
+    """Victoire / nul / défaite : vert d'eau / gris / rouille."""
+    return (f'<div class="wc-3"><div style="width:{ph}%;background:var(--jl-teal)"></div>'
+            f'<div style="width:{pdraw}%;background:var(--jl-compare)"></div>'
+            f'<div style="width:{pa}%;background:var(--jl-rust)"></div></div>')
+
 # FLAGS — drapeaux emoji par pays
 # ============================================================
 FLAGS = {
@@ -307,110 +125,94 @@ def get_group_stage_probs(_results_hash=""):
     return sim.group_stage_probabilities(n_simulations=1000)
 
 
+
+def results_hash():
+    return str(len(st.session_state.get("real_results", [])))
+
+
+def clear_sim_caches():
+    get_tournament_probs.clear()
+    get_group_stage_probs.clear()
+
+
 # ============================================================
-# HERO
+# EN-TÊTE
 # ============================================================
 
-st.markdown("""
-<div class="hero">
-    <div class="hero-title">🏆 World Cup 2026 Predictor</div>
-    <div class="hero-sub">Modèle de Poisson · Bookmakers · Monte Carlo · USA · Canada · Mexico</div>
-</div>
-""", unsafe_allow_html=True)
+header("World Cup 2026 Predictor",
+       t("Pronostic d’avant tournoi de la Coupe du monde 2026 (États-Unis, Canada, Mexique) : modèle de Poisson, "
+         "cotes des marchés de prédiction et simulations de Monte-Carlo.",
+         "Pre-tournament forecast of the 2026 World Cup (USA, Canada, Mexico): Poisson model, prediction-market odds "
+         "and Monte Carlo simulations."))
 
 # ============================================================
-# SIDEBAR — Mise à jour des vrais résultats
+# BARRE LATÉRALE : vrais résultats pendant la compétition
 # ============================================================
+
+STAGES = {"group": ("Phase de groupes", "Group stage"), "r32": ("Seizièmes", "Round of 32"),
+          "r16": ("Huitièmes", "Round of 16"), "qf": ("Quarts", "Quarter-finals"),
+          "sf": ("Demi-finales", "Semi-finals"), "final": ("Finale", "Final")}
 
 with st.sidebar:
-    st.markdown("## ⚙️ Administration")
-    st.caption("Mise à jour pendant la compétition")
-
-    # Initialiser session_state
+    st.markdown(f"### {t('Résultats réels', 'Actual results')}")
+    st.caption(t("Ajoute des résultats pour recalculer les probabilités.", "Add results to recompute the probabilities."))
     if "real_results" not in st.session_state:
         st.session_state.real_results = []
 
-    # Formulaire d'ajout d'un résultat réel
-    with st.expander("➕ Ajouter un vrai résultat", expanded=False):
-        all_teams_sidebar = sorted(set(t for teams in WC2026_GROUPS.values() for t in teams))
-        home_s = st.selectbox("Équipe domicile", all_teams_sidebar, key="sidebar_home")
-        away_s = st.selectbox("Équipe extérieur", [t for t in all_teams_sidebar if t != home_s], key="sidebar_away")
+    with st.expander(t("Ajouter un résultat", "Add a result"), expanded=False):
+        all_teams_sidebar = sorted(set(x for teams in WC2026_GROUPS.values() for x in teams))
+        home_s = st.selectbox(t("Équipe 1", "Team 1"), all_teams_sidebar, key="sidebar_home")
+        away_s = st.selectbox(t("Équipe 2", "Team 2"), [x for x in all_teams_sidebar if x != home_s], key="sidebar_away")
         col_sh, col_sa = st.columns(2)
-        score_h = col_sh.number_input("Buts domicile", 0, 20, 0, key="sidebar_sh")
-        score_a = col_sa.number_input("Buts extérieur", 0, 20, 0, key="sidebar_sa")
-        stage_s = st.selectbox("Phase", ["group", "r32", "r16", "qf", "sf", "final"], key="sidebar_stage")
-
-        if st.button("✅ Enregistrer ce résultat", use_container_width=True):
-            new_result = {
-                "home": home_s, "away": away_s,
-                "home_score": int(score_h), "away_score": int(score_a),
-                "stage": stage_s,
-            }
-            st.session_state.real_results.append(new_result)
-            # Invalider les caches qui dépendent des résultats
-            get_tournament_probs.clear()
-            get_group_stage_probs.clear()
-            st.success(f"✅ {home_s} {int(score_h)}-{int(score_a)} {away_s} enregistré !")
+        score_h = col_sh.number_input(t("Buts équipe 1", "Team 1 goals"), 0, 20, 0, key="sidebar_sh")
+        score_a = col_sa.number_input(t("Buts équipe 2", "Team 2 goals"), 0, 20, 0, key="sidebar_sa")
+        stage_s = st.selectbox(t("Phase", "Stage"), list(STAGES), key="sidebar_stage", format_func=lambda k: t(*STAGES[k]))
+        if st.button(t("Enregistrer ce résultat", "Save this result"), width="stretch"):
+            st.session_state.real_results.append({"home": home_s, "away": away_s, "home_score": int(score_h),
+                                                  "away_score": int(score_a), "stage": stage_s})
+            clear_sim_caches()
             st.rerun()
 
-    # Afficher les résultats enregistrés
     if st.session_state.real_results:
-        st.markdown(f"**{len(st.session_state.real_results)} résultat(s) enregistré(s) :**")
+        st.markdown(t(f"**{len(st.session_state.real_results)} résultat(s) enregistré(s)**",
+                      f"**{len(st.session_state.real_results)} result(s) saved**"))
         for i, r in enumerate(st.session_state.real_results):
             col_r, col_del = st.columns([4, 1])
             col_r.markdown(f"{flag(r['home'])} **{r['home_score']}-{r['away_score']}** {flag(r['away'])}")
-            if col_del.button("🗑️", key=f"del_{i}"):
+            if col_del.button("✕", key=f"del_{i}"):
                 st.session_state.real_results.pop(i)
-                get_tournament_probs.clear()
-                get_group_stage_probs.clear()
+                clear_sim_caches()
                 st.rerun()
-
-        if st.button("🔄 Recalculer avec les vrais résultats", use_container_width=True, type="primary"):
-            get_tournament_probs.clear()
-            get_group_stage_probs.clear()
+        if st.button(t("Recalculer", "Recompute"), width="stretch", type="primary"):
+            clear_sim_caches()
             st.rerun()
-
-        if st.button("❌ Effacer tous les résultats", use_container_width=True):
+        if st.button(t("Effacer tous les résultats", "Clear all results"), width="stretch"):
             st.session_state.real_results = []
-            get_tournament_probs.clear()
-            get_group_stage_probs.clear()
+            clear_sim_caches()
             st.rerun()
 
     st.divider()
-    st.markdown("**🔄 Cache**")
-    st.caption("Vider si les fichiers de données ont été mis à jour")
-    if st.button("Vider tous les caches", use_container_width=True):
+    if st.button(t("Vider les caches", "Clear caches"), width="stretch"):
         st.cache_data.clear()
         st.cache_resource.clear()
-        st.success("Caches vidés !")
         st.rerun()
-
-    st.divider()
-    st.caption("World Cup 2026 Predictor · Julie Landrevie")
-    st.caption("Modèle de Poisson v5 · Monte Carlo")
+    st.caption(t("Modèle de Poisson v5 · Monte-Carlo", "Poisson model v5 · Monte Carlo"))
 
 
-# Chargement
-with st.spinner("Entraînement du modèle de Poisson..."):
+with st.spinner(t("Entraînement du modèle de Poisson…", "Training the Poisson model…")):
     try:
         match_model, scorer_model, fixtures, all_preds = load_models()
-        data_ok = True
     except Exception as e:
-        st.error(f"❌ Erreur : {e}")
-        data_ok = False
+        st.error(t(f"Erreur : {e}", f"Error: {e}"))
+        st.stop()
 
-if not data_ok:
-    st.stop()
-
-# Métriques globales
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Équipes", "48")
-c2.metric("Matchs prédits", len(all_preds))
-c3.metric("Données historiques", "7 952 matchs")
-c4.metric("Buteurs analysés", "1 079 joueurs")
-c5.metric("Début du tournoi", "11 juin 2026")
-
-st.divider()
+c = st.columns(5)
+kpi(c[0], "48", t("Équipes", "Teams"))
+kpi(c[1], str(len(all_preds)), t("Matchs prédits", "Matches predicted"))
+kpi(c[2], t("7 952", "7,952"), t("Matchs historiques", "Historical matches"))
+kpi(c[3], t("1 079", "1,079"), t("Buteurs analysés", "Scorers analysed"))
+kpi(c[4], t("11 juin", "11 June"), t("Début du tournoi (2026)", "Tournament start (2026)"))
+st.write("")
 
 
 # ============================================================
@@ -418,397 +220,217 @@ st.divider()
 # ============================================================
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🏆 Pronostics tournoi",
-    "⚽ Matchs de groupe",
-    "🥇 Buteurs",
-    "👥 Groupes",
-    "🔍 Match par match",
-    "🏟️ Phase finale",
-])
+    t("Vainqueur", "Winner"), t("Matchs de groupe", "Group matches"), t("Buteurs", "Scorers"),
+    t("Groupes", "Groups"), t("Match par match", "Match by match"), t("Phase finale", "Knockouts")])
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 1 — PRONOSTICS TOURNOI
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 1 : VAINQUEUR ───────────────────────────────────
 with tab1:
-    st.markdown('<div class="section-title">Probabilités de remporter la Coupe du Monde</div>', unsafe_allow_html=True)
-    st.caption("Basé sur 2 000 simulations Monte Carlo — modèle Poisson + classement FIFA + cotes bookmakers (Polymarket/Kalshi, ~1Md$)")
-
+    st.subheader(t("Probabilité de remporter la Coupe du monde", "Probability of winning the World Cup"))
+    st.caption(t("2 000 tournois simulés (Monte-Carlo) : modèle de Poisson, classement FIFA et cotes des marchés de prédiction.",
+                 "2,000 simulated tournaments (Monte Carlo): Poisson model, FIFA ranking and prediction-market odds."))
     col_mc, col_book = st.columns([3, 2], gap="large")
-
-    results_hash_mc = str(len(st.session_state.get("real_results", [])))
-    with st.spinner("Simulation en cours (2000 tournois)..."):
-        mc, ko_data = get_tournament_probs(n_sims=2000, _results_hash=results_hash_mc)
+    with st.spinner(t("Simulation en cours (2 000 tournois)…", "Simulating 2,000 tournaments…")):
+        mc, ko_data = get_tournament_probs(n_sims=2000, _results_hash=results_hash())
 
     with col_mc:
-        st.markdown("**📊 Notre modèle**")
-        top20 = mc.head(20)
-        for _, row in top20.iterrows():
-            team  = row["team"]
-            prob  = row["prob_win"]
-            book  = BOOKMAKER_PROBS.get(team, 0.003) * 100
-            bar_w = int(prob / 30 * 100)
-
-            st.markdown(f"""
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;
-                        background:#111827; border:1px solid #1F2937; border-radius:8px; padding:10px 14px;">
-                <div style="font-size:1.5rem; width:36px">{flag(team)}</div>
-                <div style="flex:1">
-                    <div style="font-weight:600; font-size:0.9rem">{team}</div>
-                    <div style="height:5px; background:#1F2937; border-radius:3px; margin-top:5px;">
-                        <div style="height:5px; width:{min(bar_w,100)}%; background:linear-gradient(90deg,#F5C842,#E8334A); border-radius:3px;"></div>
-                    </div>
-                </div>
-                <div style="text-align:right; min-width:80px">
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.3rem; color:#F5C842">{prob:.1f}%</div>
-                    <div style="font-size:0.68rem; color:#6B7280">book: {book:.1f}%</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown(f"**{t('Notre modèle', 'Our model')}**")
+        html = ""
+        for i, (_, row) in enumerate(mc.head(20).iterrows()):
+            team, prob = row["team"], row["prob_win"]
+            book = BOOKMAKER_PROBS.get(team, 0.003) * 100
+            html += (f'<div class="wc-card{" hl" if i == 0 else ""}" style="display:flex;align-items:center;gap:12px">'
+                     f'<div style="font-size:1.4rem;width:34px">{flag(team)}</div>'
+                     f'<div style="flex:1"><div style="font-weight:700">{team}</div>'
+                     f'<div class="wc-bar" style="margin-top:5px"><div style="width:{min(prob / 30 * 100, 100):.0f}%"></div></div></div>'
+                     f'<div style="text-align:right;min-width:86px"><div class="wc-num" style="font-size:1.3rem">{pct(prob)}</div>'
+                     f'<div class="wc-small">{t("marchés :", "markets:")} {pct(book)}</div></div></div>')
+        st.markdown(html, unsafe_allow_html=True)
 
     with col_book:
-        st.markdown("**📈 Cotes bookmakers (Polymarket)**")
-        st.caption("Source : marchés de prédiction, ~1 milliard $ de volume")
-
-        book_teams = [
-            ("France", 17.4), ("Spain", 16.5), ("England", 11.3),
-            ("Argentina", 10.5), ("Brazil", 9.5), ("Germany", 6.5),
-            ("Portugal", 5.5), ("Netherlands", 4.0), ("Morocco", 2.0),
-            ("Colombia", 1.4), ("Uruguay", 1.2), ("United States", 1.6),
-            ("Switzerland", 1.2), ("Croatia", 1.2), ("Norway", 1.0),
-        ]
-        for team, prob in book_teams:
-            st.markdown(f"""
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <div style="width:24px; text-align:center">{flag(team)}</div>
-                <div style="flex:1; font-size:0.85rem">{team}</div>
-                <div style="font-family:'Bebas Neue',cursive; color:#F5C842; font-size:1.1rem">{prob:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div style="background:#111827; border:1px solid #1F2937; border-radius:8px;
-                    padding:12px; margin-top:16px; font-size:0.75rem; color:#6B7280;">
-        ⚠️ <b>Points d'attention modèle</b><br>
-        Les probabilités du modèle peuvent différer des bookmakers car elles
-        reflètent uniquement les performances statistiques récentes et le bracket FIFA.
-        Les bookmakers intègrent aussi des facteurs humains (blessures, moral, etc.).
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"**{t('Cotes des marchés de prédiction (Polymarket)', 'Prediction-market odds (Polymarket)')}**")
+        st.caption(t("Polymarket et Kalshi, environ 1 milliard de dollars de volume (mai 2026).", "Polymarket and Kalshi, about $1 billion in volume (May 2026)."))
+        book_teams = [("France", 17.4), ("Spain", 16.5), ("England", 11.3), ("Argentina", 10.5), ("Brazil", 9.5),
+                      ("Germany", 6.5), ("Portugal", 5.5), ("Netherlands", 4.0), ("Morocco", 2.0), ("Colombia", 1.4),
+                      ("Uruguay", 1.2), ("United States", 1.6), ("Switzerland", 1.2), ("Croatia", 1.2), ("Norway", 1.0)]
+        st.markdown("".join(
+            f'<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--jl-grid)">'
+            f'<div style="width:24px;text-align:center">{flag(team)}</div><div style="flex:1">{team}</div>'
+            f'<div class="wc-num" style="font-size:1.05rem">{pct(prob)}</div></div>' for team, prob in book_teams),
+            unsafe_allow_html=True)
+        note(t("<b>À garder en tête</b> : le modèle ne voit que les performances statistiques récentes et le tableau FIFA ; "
+               "les marchés intègrent aussi blessures, forme du moment et autres facteurs humains.",
+               "<b>Keep in mind</b>: the model only sees recent statistical performance and the FIFA bracket; markets also "
+               "price in injuries, current form and other human factors."), warn=True)
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 2 — MATCHS DE GROUPE
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 2 : MATCHS DE GROUPE ────────────────────────────
 with tab2:
-    st.markdown('<div class="section-title">Prédictions — Phase de groupes</div>', unsafe_allow_html=True)
-
-    # Filtre par groupe
+    st.subheader(t("Prédictions de la phase de groupes", "Group-stage predictions"))
     groups = sorted(WC2026_GROUPS.keys())
-    selected_group = st.selectbox(
-        "Filtrer par groupe",
-        ["Tous les groupes"] + [f"Groupe {g}" for g in groups]
-    )
-
+    selected_group = st.selectbox(t("Groupe", "Group"), ["__all__"] + groups,
+                                  format_func=lambda g: t("Tous les groupes", "All groups") if g == "__all__" else t(f"Groupe {g}", f"Group {g}"))
     df_display = all_preds.copy()
-    if selected_group != "Tous les groupes":
-        g_letter = selected_group.split()[-1]
-        group_teams = WC2026_GROUPS.get(g_letter, [])
-        df_display = df_display[
-            df_display["home"].isin(group_teams) |
-            df_display["away"].isin(group_teams)
-        ]
-
-    st.caption(f"{len(df_display)} matchs affichés")
-
+    if selected_group != "__all__":
+        group_teams = WC2026_GROUPS.get(selected_group, [])
+        df_display = df_display[df_display["home"].isin(group_teams) | df_display["away"].isin(group_teams)]
+    st.caption(t(f"{len(df_display)} matchs · barre : victoire équipe 1 (vert d’eau), nul (gris), victoire équipe 2 (rouille)",
+                 f"{len(df_display)} matches · bar: team 1 win (teal), draw (grey), team 2 win (rust)"))
+    html = ""
     for _, row in df_display.iterrows():
-        ph = row["% victoire"]
-        pd_ = row["% nul"]
-        pa = row["% défaite"]
-        bh = row["buts_home"]
-        ba = row["buts_away"]
-
-        st.markdown(f"""
-        <div style="background:#111827; border:1px solid #1F2937; border-radius:10px;
-                    padding:14px 18px; margin-bottom:8px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                <div style="flex:2; text-align:right;">
-                    <span style="font-size:1.3rem">{flag(row['home'])}</span>
-                    <span style="font-weight:600; margin-left:8px">{row['home']}</span>
-                </div>
-                <div style="flex:1; text-align:center;">
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.4rem; color:#F5C842">
-                        {row['score_prédit']}
-                    </div>
-                    <div style="font-size:0.68rem; color:#6B7280">{row['date']}</div>
-                </div>
-                <div style="flex:2; text-align:left;">
-                    <span style="font-weight:600; margin-right:8px">{row['away']}</span>
-                    <span style="font-size:1.3rem">{flag(row['away'])}</span>
-                </div>
-            </div>
-            <div style="display:flex; gap:4px; margin-top:10px; height:5px; border-radius:3px; overflow:hidden;">
-                <div style="width:{ph}%; background:#10B981;"></div>
-                <div style="width:{pd_}%; background:#4B5563;"></div>
-                <div style="width:{pa}%; background:#E8334A;"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.72rem; color:#6B7280;">
-                <span>✓ {ph:.0f}%</span>
-                <span>= {pd_:.0f}%</span>
-                <span>{pa:.0f}% ✓</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        ph, pdr, pa = row["% victoire"], row["% nul"], row["% défaite"]
+        html += (f'<div class="wc-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px">'
+                 f'<div style="flex:2;text-align:right"><b>{row["home"]}</b> <span style="font-size:1.2rem">{flag(row["home"])}</span></div>'
+                 f'<div style="flex:1;text-align:center"><div class="wc-num" style="font-size:1.4rem">{row["score_prédit"]}</div>'
+                 f'<div class="wc-small">{row["date"]}</div></div>'
+                 f'<div style="flex:2"><span style="font-size:1.2rem">{flag(row["away"])}</span> <b>{row["away"]}</b></div></div>'
+                 f'{three_bar(ph, pdr, pa)}'
+                 f'<div class="wc-small" style="display:flex;justify-content:space-between;margin-top:4px">'
+                 f'<span>{pct(ph, 0)}</span><span>{t("nul", "draw")} {pct(pdr, 0)}</span><span>{pct(pa, 0)}</span></div></div>')
+    st.markdown(html, unsafe_allow_html=True)
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 3 — BUTEURS
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 3 : BUTEURS ─────────────────────────────────────
 with tab3:
-    # ── Top buteurs tournoi complet (simulation Monte Carlo) ─
-    st.markdown('<div class="section-title">🏆 Top buteurs — Tournoi complet (simulation)</div>', unsafe_allow_html=True)
-    st.caption("Buts attendus sur l'ensemble du tournoi (groupes + phase finale) · 500 simulations Monte Carlo")
+    st.subheader(t("Meilleurs buteurs sur tout le tournoi (simulation)", "Top scorers over the whole tournament (simulation)"))
+    st.caption(t("Buts attendus sur l’ensemble du tournoi (groupes et phase finale) · 500 simulations",
+                 "Expected goals over the whole tournament (groups and knockouts) · 500 simulations"))
 
     @st.cache_data
     def get_full_scorer_rankings(_results_hash=""):
-        match_model, scorer_model_c, _, _ = load_models()
+        match_model_c, scorer_model_c, _, _ = load_models()
         state = TournamentState()
         for r in st.session_state.get("real_results", []):
             state.add_real_result(r["home"], r["away"], r["home_score"], r["away_score"], r.get("stage", "group"))
-        sim = TournamentSimulator(model=match_model, state=state)
+        sim = TournamentSimulator(model=match_model_c, state=state)
         return sim.run_scorer_monte_carlo(scorer_model_c, n_simulations=500)
 
-    results_hash_scorers = str(len(st.session_state.get("real_results", [])))
-    with st.spinner("Simulation des buteurs sur le tournoi complet..."):
-        full_scorers = get_full_scorer_rankings(_results_hash=results_hash_scorers)
+    with st.spinner(t("Simulation des buteurs…", "Simulating scorers…")):
+        full_scorers = get_full_scorer_rankings(_results_hash=results_hash())
 
     col_full, col_team = st.columns([3, 2], gap="large")
-
     with col_full:
-        st.caption("Phase de groupes + huitièmes + quarts + demi-finales + finale")
+        html = ""
         for i, (_, row) in enumerate(full_scorers.head(20).iterrows(), 1):
-            team  = row["Équipe"]
-            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-            buts  = row["Buts attendus"]
-            pct   = row["% marquer"]
-            st.markdown(f"""
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;
-                        background:#111827; border:1px solid #1F2937; border-radius:8px;
-                        padding:10px 14px;">
-                <div style="width:28px; text-align:center; font-size:0.9rem; color:#6B7280">{medal}</div>
-                <div style="font-size:1.3rem">{flag(team)}</div>
-                <div style="flex:1">
-                    <div style="font-weight:600; font-size:0.9rem">{row['Joueur']}</div>
-                    <div style="font-size:0.72rem; color:#6B7280">{team} · {row['Matchs moyens']:.1f} matchs en moyenne</div>
-                </div>
-                <div style="text-align:right">
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.3rem; color:#F5C842">{buts:.2f}</div>
-                    <div style="font-size:0.68rem; color:#6B7280">{pct:.0f}% de marquer</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            team = row["Équipe"]
+            html += (f'<div class="wc-card{" hl" if i == 1 else ""}" style="display:flex;align-items:center;gap:12px">'
+                     f'<div class="wc-small" style="width:24px;text-align:center">{i}</div>'
+                     f'<div style="font-size:1.2rem">{flag(team)}</div>'
+                     f'<div style="flex:1"><div style="font-weight:700">{row["Joueur"]}</div>'
+                     f'<div class="wc-small">{team} · {fr_num(row["Matchs moyens"], 1)} {t("matchs en moyenne", "matches on average")}</div></div>'
+                     f'<div style="text-align:right"><div class="wc-num" style="font-size:1.3rem">{fr_num(row["Buts attendus"], 2)}</div>'
+                     f'<div class="wc-small">{pct(row["% marquer"], 0)} {t("de marquer", "to score")}</div></div></div>')
+        st.markdown(html, unsafe_allow_html=True)
 
     with col_team:
-        st.markdown('<div class="section-title">Par équipe</div>', unsafe_allow_html=True)
-        st.caption("Buts attendus dans la compétition · % meilleur buteur de la sélection")
-
-        _, scorer_model_t, fixtures_t, all_preds_t = load_models()
-        team_options = sorted([t for t in WC2026_GROUPS.values() for t in t])
-        selected_team = st.selectbox("Choisir une équipe", team_options)
-
+        st.markdown(f"**{t('Par équipe', 'By team')}**")
+        st.caption(t("Buts attendus en phase de groupes et part de chaque joueur", "Expected group-stage goals and each player’s share"))
+        team_options = sorted(x for teams in WC2026_GROUPS.values() for x in teams)
+        selected_team = st.selectbox(t("Équipe", "Team"), team_options)
         if selected_team:
-            # Buts attendus sur les matchs de groupe pour cette équipe
-            team_preds = all_preds_t[
-                (all_preds_t["home"] == selected_team) |
-                (all_preds_t["away"] == selected_team)
-            ]
-            total_exp = 0
-            player_exp = {}
+            team_preds = all_preds[(all_preds["home"] == selected_team) | (all_preds["away"] == selected_team)]
+            total_exp, player_exp = 0, {}
             for _, row in team_preds.iterrows():
-                if row["home"] == selected_team:
-                    exp_g = row["buts_home"]
-                else:
-                    exp_g = row["buts_away"]
+                exp_g = row["buts_home"] if row["home"] == selected_team else row["buts_away"]
                 total_exp += exp_g
-                if selected_team in scorer_model_t.team_scorers_:
-                    for _, p in scorer_model_t.team_scorers_[selected_team].iterrows():
-                        key = p["scorer"]
-                        player_exp[key] = player_exp.get(key, 0) + exp_g * p["ratio"]
-
-            st.markdown(f"**{flag(selected_team)} {selected_team}**")
-            st.caption(f"Buts attendus phase de groupes : {total_exp:.2f}")
-
+                if selected_team in scorer_model.team_scorers_:
+                    for _, p in scorer_model.team_scorers_[selected_team].iterrows():
+                        player_exp[p["scorer"]] = player_exp.get(p["scorer"], 0) + exp_g * p["ratio"]
+            st.markdown(f"**{flag(selected_team)} {selected_team}** · "
+                        + t(f"{fr_num(total_exp, 2)} buts attendus", f"{fr_num(total_exp, 2)} expected goals"))
             if player_exp:
                 sorted_players = sorted(player_exp.items(), key=lambda x: x[1], reverse=True)
-                max_exp = sorted_players[0][1] if sorted_players else 1
-                for joueur, exp_g in sorted_players[:8]:
-                    prob_top = (exp_g / total_exp * 100) if total_exp > 0 else 0
-                    bar_w = int(exp_g / max_exp * 100)
-                    st.markdown(f"""
-                    <div style="background:#111827; border:1px solid #1F2937; border-radius:6px;
-                                padding:8px 12px; margin-bottom:6px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:0.85rem; font-weight:500">{joueur}</div>
-                            <div style="text-align:right">
-                                <span style="font-family:'Bebas Neue',cursive; color:#F5C842">{exp_g:.2f} buts</span>
-                                <span style="font-size:0.68rem; color:#6B7280; margin-left:6px">{prob_top:.0f}% top buteur</span>
-                            </div>
-                        </div>
-                        <div style="height:3px; background:#1F2937; border-radius:2px; margin-top:6px;">
-                            <div style="height:3px; width:{bar_w}%; background:linear-gradient(90deg,#F5C842,#E8334A); border-radius:2px;"></div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                max_exp = sorted_players[0][1] or 1
+                st.markdown("".join(
+                    f'<div class="wc-card"><div style="display:flex;justify-content:space-between">'
+                    f'<span style="font-weight:700">{j}</span><span><span class="wc-num">{fr_num(e, 2)}</span> '
+                    f'<span class="wc-small">· {pct(e / total_exp * 100 if total_exp else 0, 0)} {t("des buts", "of goals")}</span></span></div>'
+                    f'<div class="wc-bar" style="margin-top:6px"><div style="width:{e / max_exp * 100:.0f}%"></div></div></div>'
+                    for j, e in sorted_players[:8]), unsafe_allow_html=True)
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 4 — GROUPES
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 4 : GROUPES ─────────────────────────────────────
 with tab4:
-    st.markdown('<div class="section-title">Composition des 12 groupes</div>', unsafe_allow_html=True)
-    st.caption("Probabilités de qualification calculées sur 1000 simulations")
-
-    # Calcul des probas de groupe — utilise les vrais résultats si disponibles
-    results_hash = str(len(st.session_state.get("real_results", [])))
-    with st.spinner("Calcul des probabilités de groupe..."):
-        group_probs = get_group_stage_probs(_results_hash=results_hash)
-
-    # Affichage en grille 3 colonnes
+    st.subheader(t("Les 12 groupes", "The 12 groups"))
+    st.caption(t("Probabilité de qualification (1 000 simulations) ; entre parenthèses, probabilité de finir 1er.",
+                 "Qualification probability (1,000 simulations); in brackets, probability of finishing first."))
+    with st.spinner(t("Calcul des probabilités de groupe…", "Computing group probabilities…")):
+        group_probs = get_group_stage_probs(_results_hash=results_hash())
     group_keys = list(WC2026_GROUPS.keys())
     for row_i in range(0, len(group_keys), 3):
         cols = st.columns(3, gap="medium")
-        for col_i, g in enumerate(group_keys[row_i:row_i+3]):
+        for col_i, g in enumerate(group_keys[row_i:row_i + 3]):
             with cols[col_i]:
-                st.markdown(f'<div class="group-header">GROUPE {g}</div>', unsafe_allow_html=True)
+                st.markdown(f"**{t('Groupe', 'Group')} {g}**")
                 gdf = group_probs[group_probs["group"] == g].sort_values("% qualif", ascending=False)
-                for _, tr in gdf.iterrows():
-                    team   = tr["team"]
-                    qualif = tr["% qualif"]
-                    first  = tr["% 1er"]
-                    color  = "#F5C842" if qualif >= 60 else "#10B981" if qualif >= 40 else "#6B7280"
-                    st.markdown(f"""
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;
-                                padding:6px 10px; background:#111827; border-radius:6px;
-                                border-left:3px solid {color};">
-                        <span>{flag(team)}</span>
-                        <span style="flex:1; font-size:0.82rem">{team}</span>
-                        <span style="font-size:0.75rem; color:#6B7280">{first:.0f}% 1er</span>
-                        <span style="font-family:'Bebas Neue',cursive; color:{color}; font-size:0.95rem">{qualif:.0f}%</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                st.markdown("".join(
+                    f'<div class="wc-card" style="display:flex;align-items:center;gap:8px;padding:6px 10px;'
+                    f'border-left:3px solid {"var(--jl-teal)" if tr["% qualif"] >= 50 else "var(--jl-grid)"}">'
+                    f'<span>{flag(tr["team"])}</span><span style="flex:1">{tr["team"]}</span>'
+                    f'<span class="wc-small">({pct(tr["% 1er"], 0)})</span>'
+                    f'<span class="wc-num" style="font-size:1rem">{pct(tr["% qualif"], 0)}</span></div>'
+                    for _, tr in gdf.iterrows()), unsafe_allow_html=True)
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 5 — MATCH PAR MATCH
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 5 : MATCH PAR MATCH ─────────────────────────────
 with tab5:
-    st.markdown('<div class="section-title">Analyse détaillée — Match par match</div>', unsafe_allow_html=True)
-
-    all_teams = sorted(set(
-        t for teams in WC2026_GROUPS.values() for t in teams
-    ))
-
-    col_h, col_vs, col_a = st.columns([2, 1, 2])
-    with col_h:
-        home = st.selectbox("Équipe domicile", all_teams, index=all_teams.index("France"))
-    with col_vs:
-        st.markdown("<br><div style='text-align:center; font-family:Bebas Neue; font-size:1.5rem; color:#F5C842'>VS</div>", unsafe_allow_html=True)
-    with col_a:
-        away = st.selectbox("Équipe extérieur", all_teams, index=all_teams.index("Argentina"))
-
+    st.subheader(t("Analyse détaillée d’un match", "Detailed match analysis"))
+    all_teams = sorted(set(x for teams in WC2026_GROUPS.values() for x in teams))
+    col_h, col_a = st.columns(2)
+    home = col_h.selectbox(t("Équipe 1", "Team 1"), all_teams, index=all_teams.index("France"))
+    away = col_a.selectbox(t("Équipe 2", "Team 2"), all_teams, index=all_teams.index("Argentina"))
     if home != away:
-        pred    = match_model.predict_score(home, away, neutral=True)
-        scorers = scorer_model.predict_match_scorers(
-            home, away, pred["expected_home"], pred["expected_away"], top_n=5
-        )
-
-        # Résumé du match
+        pred = match_model.predict_score(home, away, neutral=True)
+        scorers = scorer_model.predict_match_scorers(home, away, pred["expected_home"], pred["expected_away"], top_n=5)
         st.markdown(f"""
-        <div style="background:#111827; border:1px solid #F5C842; border-radius:12px;
-                    padding:24px; margin:16px 0; text-align:center;">
-            <div style="display:flex; align-items:center; justify-content:center; gap:24px;">
-                <div>
-                    <div style="font-size:2.5rem">{flag(home)}</div>
-                    <div style="font-weight:700; margin-top:4px">{home}</div>
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.5rem; color:#10B981">{pred['prob_home_win']}%</div>
-                </div>
-                <div>
-                    <div style="font-family:'Bebas Neue',cursive; font-size:3rem; color:#F5C842">
-                        {pred['rounded_score']}
-                    </div>
-                    <div style="font-size:0.75rem; color:#6B7280">score prédit</div>
-                    <div style="font-size:0.8rem; color:#4B5563; margin-top:4px">
-                        Nul : {pred['prob_draw']}%
-                    </div>
-                </div>
-                <div>
-                    <div style="font-size:2.5rem">{flag(away)}</div>
-                    <div style="font-weight:700; margin-top:4px">{away}</div>
-                    <div style="font-family:'Bebas Neue',cursive; font-size:1.5rem; color:#E8334A">{pred['prob_away_win']}%</div>
-                </div>
-            </div>
-            <div style="margin-top:12px; font-size:0.78rem; color:#6B7280">
-                Buts attendus : {pred['expected_home']:.2f} — {pred['expected_away']:.2f}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="wc-card" style="padding:22px;text-align:center;margin:12px 0">
+  <div style="display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap">
+    <div><div style="font-size:2.2rem">{flag(home)}</div><div style="font-weight:700">{home}</div>
+      <div class="wc-num" style="font-size:1.5rem">{pct(pred['prob_home_win'])}</div></div>
+    <div><div class="wc-num" style="font-size:3rem">{pred['rounded_score']}</div>
+      <div class="wc-small">{t('score le plus probable', 'most likely score')}</div>
+      <div class="wc-small">{t('Nul :', 'Draw:')} {pct(pred['prob_draw'])}</div></div>
+    <div><div style="font-size:2.2rem">{flag(away)}</div><div style="font-weight:700">{away}</div>
+      <div class="wc-num" style="font-size:1.5rem">{pct(pred['prob_away_win'])}</div></div>
+  </div>
+  {three_bar(pred['prob_home_win'], pred['prob_draw'], pred['prob_away_win'])}
+  <div class="wc-small" style="margin-top:10px">{t('Buts attendus :', 'Expected goals:')} {fr_num(pred['expected_home'], 2)} – {fr_num(pred['expected_away'], 2)}</div>
+</div>""", unsafe_allow_html=True)
 
-        # Matrice des scores
-        st.markdown('<div class="section-title">Distribution des scores</div>', unsafe_allow_html=True)
+        st.markdown(f"**{t('Probabilité de chaque score', 'Probability of each score')}**")
         matrix = pred["score_matrix"]
-        max_goals_show = 5
-        matrix_data = {}
-        for a in range(max_goals_show + 1):
-            matrix_data[f"{away} {a}"] = [
-                f"{matrix[h, a]*100:.1f}%" for h in range(max_goals_show + 1)
-            ]
-        df_matrix = pd.DataFrame(
-            matrix_data,
-            index=[f"{home} {h}" for h in range(max_goals_show + 1)]
-        )
-        st.dataframe(df_matrix, use_container_width=True)
+        n = 5
+        df_matrix = pd.DataFrame({f"{away} {a}": [matrix[h, a] * 100 for h in range(n + 1)] for a in range(n + 1)},
+                                 index=[f"{home} {h}" for h in range(n + 1)])
+        st.dataframe(df_matrix.style.format(lambda v: pct(v)).background_gradient(cmap=LinearSegmentedColormap.from_list("jl", ["#e8f3f1", "#9fd3cc", "#0d8f84"]), axis=None),
+                     width="stretch")
 
-        # Buteurs probables
-        st.markdown('<div class="section-title">Buteurs probables</div>', unsafe_allow_html=True)
+        st.markdown(f"**{t('Buteurs probables', 'Likely scorers')}**")
         col_sh, col_sa = st.columns(2, gap="large")
-
         for col, team in [(col_sh, home), (col_sa, away)]:
             with col:
-                st.markdown(f"**{flag(team)} {team}**")
-                team_scorers = scorers.get(team, pd.DataFrame())
-                if not team_scorers.empty and "scorer" in team_scorers.columns:
-                    for _, sr in team_scorers.iterrows():
-                        pct = sr.get("% chance de marquer", 0)
-                        st.markdown(f"""
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;
-                                    background:#111827; border:1px solid #1F2937; border-radius:6px;
-                                    padding:8px 12px;">
-                            <div style="flex:1; font-size:0.85rem">{sr['scorer']}</div>
-                            <div style="height:4px; width:60px; background:#1F2937; border-radius:2px; overflow:hidden;">
-                                <div style="height:4px; width:{min(pct*2,100):.0f}%; background:#F5C842;"></div>
-                            </div>
-                            <div style="font-family:'Bebas Neue',cursive; color:#F5C842; font-size:1rem; min-width:40px; text-align:right">{pct:.0f}%</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                st.markdown(f"{flag(team)} **{team}**")
+                ts = scorers.get(team, pd.DataFrame())
+                if not ts.empty and "scorer" in ts.columns:
+                    st.markdown("".join(
+                        f'<div class="wc-card" style="display:flex;align-items:center;gap:10px;padding:8px 12px">'
+                        f'<div style="flex:1">{sr["scorer"]}</div>'
+                        f'<div class="wc-bar" style="width:70px"><div style="width:{min(sr.get("% chance de marquer", 0) * 2, 100):.0f}%"></div></div>'
+                        f'<div class="wc-num" style="min-width:46px;text-align:right">{pct(sr.get("% chance de marquer", 0), 0)}</div></div>'
+                        for _, sr in ts.iterrows()), unsafe_allow_html=True)
     else:
-        st.info("Sélectionne deux équipes différentes.")
+        st.info(t("Choisis deux équipes différentes.", "Pick two different teams."))
 
 
-# ──────────────────────────────────────────────────────────
-# ONGLET 6 — PHASE FINALE
-# ──────────────────────────────────────────────────────────
+# ── ONGLET 6 : PHASE FINALE ────────────────────────────────
 with tab6:
-    st.markdown('<div class="section-title">🏟️ Phase finale — Scénario le plus probable</div>', unsafe_allow_html=True)
-    st.caption("Simulation déterministe basée sur les forces du modèle · Les équipes les plus probables à chaque étape")
-
-    st.markdown("""
-    <div style="background:#111827; border:1px solid #F5C842; border-radius:8px;
-                padding:12px 16px; margin-bottom:20px; font-size:0.78rem; color:#9CA3AF;">
-    ⚠️ <b>Mise en garde</b> — Ces prédictions seront mises à jour au fur et à mesure des vrais résultats.
-    Record de buts sur une Coupe du Monde : <b>13 buts</b> (Just Fontaine, 1958) ·
-    Ère moderne : <b>8 buts</b> · Maximum possible : <b>7 matchs</b> par équipe (8 avec la phase de groupes).
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader(t("Phase finale : le scénario le plus probable", "Knockouts: the most likely scenario"))
+    st.caption(t("Simulation déterministe : à chaque tour, l’équipe la plus probable passe.",
+                 "Deterministic simulation: in each round, the most likely team goes through."))
+    note(t("Record de buts sur une Coupe du monde : <b>13</b> (Just Fontaine, 1958) ; ère moderne : <b>8</b>. "
+           "Au plus <b>8 matchs</b> par équipe avec la phase de groupes.",
+           "Record goals at a single World Cup: <b>13</b> (Just Fontaine, 1958); modern era: <b>8</b>. "
+           "At most <b>8 matches</b> per team including the group stage."))
 
     @st.cache_data
     def get_most_likely_bracket(_results_hash=""):
@@ -819,99 +441,48 @@ with tab6:
         sim_b = TournamentSimulator(model=match_model_b, state=state_b)
         return sim_b.simulate_most_likely_bracket(scorer_model=scorer_model_b)
 
-    results_hash_bracket = str(len(st.session_state.get("real_results", [])))
-    with st.spinner("Calcul du bracket le plus probable..."):
-        bracket = get_most_likely_bracket(_results_hash=results_hash_bracket)
+    with st.spinner(t("Calcul du tableau le plus probable…", "Computing the most likely bracket…")):
+        bracket = get_most_likely_bracket(_results_hash=results_hash())
 
-    PHASE_NAMES = {
-        "r32":   ("⚔️ Seizièmes de finale — Round of 32", 4),
-        "r16":   ("🔥 Huitièmes de finale — Round of 16", 4),
-        "qf":    ("🏅 Quarts de finale",                  2),
-        "sf":    ("🥈 Demi-finales",                       2),
-        "final": ("🏆 Finale",                             1),
-    }
-
-    for phase, (phase_label, n_cols) in PHASE_NAMES.items():
+    PHASES = {"r32": (("Seizièmes de finale", "Round of 32"), 4), "r16": (("Huitièmes de finale", "Round of 16"), 4),
+              "qf": (("Quarts de finale", "Quarter-finals"), 2), "sf": (("Demi-finales", "Semi-finals"), 2),
+              "final": (("Finale", "Final"), 1)}
+    for phase, (labels, n_cols) in PHASES.items():
         matches = bracket.get(phase, [])
         if not matches:
             continue
-        if not matches:
-            continue
-
-        st.markdown(f'<div class="section-title">{phase_label}</div>', unsafe_allow_html=True)
-
-        if n_cols > 1:
-            cols = st.columns(n_cols, gap="medium")
-        else:
-            cols = [st.container()]
-
+        st.markdown(f"#### {t(*labels)}")
+        cols = st.columns(n_cols, gap="medium") if n_cols > 1 else [st.container()]
         for i, m in enumerate(matches):
-            home = m["home"]
-            away = m["away"]
-            winner = m["winner"]
-            ph = m["prob_home_win"]
-            pd_ = m["prob_draw"]
-            pa = m["prob_away_win"]
-            score = m["score"]
-            mid = m.get("match_id", "")
-
-            winner_color_h = "#F5C842" if winner == home else "#6B7280"
-            winner_color_a = "#F5C842" if winner == away else "#6B7280"
-
-            col = cols[i % n_cols] if n_cols > 1 else cols[0]
-            with col:
+            h, a, w = m["home"], m["away"], m["winner"]
+            with cols[i % n_cols]:
                 st.markdown(f"""
-                <div style="background:#111827; border:1px solid {'#F5C842' if phase=='final' else '#1F2937'};
-                            border-radius:10px; padding:14px 16px; margin-bottom:10px;">
-                    <div style="font-size:0.65rem; color:#6B7280; text-align:center; margin-bottom:8px;
-                                text-transform:uppercase; letter-spacing:1px;">{mid}</div>
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                        <div style="flex:2; text-align:right;">
-                            <div style="font-size:1.2rem">{flag(home)}</div>
-                            <div style="font-weight:600; font-size:0.85rem; color:{winner_color_h}">{home}</div>
-                            <div style="font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#10B981">{ph:.0f}%</div>
-                        </div>
-                        <div style="flex:1; text-align:center;">
-                            <div style="font-family:'Bebas Neue',cursive; font-size:1.6rem; color:#F5C842">{score}</div>
-                            <div style="font-size:0.65rem; color:#6B7280">Nul {pd_:.0f}%</div>
-                        </div>
-                        <div style="flex:2; text-align:left;">
-                            <div style="font-size:1.2rem">{flag(away)}</div>
-                            <div style="font-weight:600; font-size:0.85rem; color:{winner_color_a}">{away}</div>
-                            <div style="font-family:'Bebas Neue',cursive; font-size:1.1rem; color:#E8334A">{pa:.0f}%</div>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:2px; margin-top:8px; height:4px; border-radius:2px; overflow:hidden;">
-                        <div style="width:{ph}%; background:#10B981;"></div>
-                        <div style="width:{pd_}%; background:#4B5563;"></div>
-                        <div style="width:{pa}%; background:#E8334A;"></div>
-                    </div>
-                    <div style="text-align:center; margin-top:8px;">
-                        <span style="background:{'linear-gradient(135deg,#F5C842,#E8334A)' if phase=='final' else '#1F2937'};
-                                     color:{'#000' if phase=='final' else '#F5C842'};
-                                     font-family:'Bebas Neue',cursive; font-size:0.85rem; letter-spacing:1px;
-                                     padding:3px 12px; border-radius:99px;">
-                            ➤ {winner}
-                        </span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+<div class="wc-card{' hl' if phase == 'final' else ''}" style="padding:12px 14px">
+  <div class="wc-small" style="text-align:center;margin-bottom:6px">{m.get('match_id', '')}</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <div style="flex:2;text-align:right"><div>{flag(h)}</div>
+      <div style="font-weight:{700 if w == h else 400};color:var({'--jl-ink' if w == h else '--jl-ink2'})">{h}</div>
+      <div class="wc-small">{pct(m['prob_home_win'], 0)}</div></div>
+    <div style="flex:0 0 auto;text-align:center"><div class="wc-num" style="font-size:1.5rem;white-space:nowrap">{m['score']}</div>
+      <div class="wc-small">{t('nul', 'draw')} {pct(m['prob_draw'], 0)}</div></div>
+    <div style="flex:2"><div>{flag(a)}</div>
+      <div style="font-weight:{700 if w == a else 400};color:var({'--jl-ink' if w == a else '--jl-ink2'})">{a}</div>
+      <div class="wc-small">{pct(m['prob_away_win'], 0)}</div></div>
+  </div>
+  {three_bar(m['prob_home_win'], m['prob_draw'], m['prob_away_win'])}
+  <div style="text-align:center;margin-top:8px"><span class="jl-tag">→ {w}</span></div>
+</div>""", unsafe_allow_html=True)
 
-        if phase == "final" and bracket.get("final"):
-            finalist = bracket["final"][0]
+        if phase == "final":
+            champ = matches[0]["winner"]
             st.markdown(f"""
-            <div style="text-align:center; margin-top:24px; padding:24px;
-                        background:linear-gradient(135deg,#0A0E1A,#1a1a0a);
-                        border:2px solid #F5C842; border-radius:16px;">
-                <div style="font-size:0.75rem; color:#6B7280; text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;">
-                    🏆 CHAMPION PRÉDIT
-                </div>
-                <div style="font-size:4rem">{flag(finalist['winner'])}</div>
-                <div style="font-family:'Bebas Neue',cursive; font-size:2.5rem; color:#F5C842; letter-spacing:3px;">
-                    {finalist['winner']}
-                </div>
-                <div style="font-size:0.8rem; color:#6B7280; margin-top:8px;">
-                    Basé sur le modèle de Poisson v5 + bookmakers Polymarket + expérience WC
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="wc-card hl" style="text-align:center;padding:24px;margin-top:16px">
+  <div class="wc-small" style="text-transform:uppercase;letter-spacing:2px">{t('Champion prédit', 'Predicted champion')}</div>
+  <div style="font-size:3.4rem">{flag(champ)}</div>
+  <div class="wc-num" style="font-size:2.4rem;color:var(--jl-rust)">{champ}</div>
+  <div class="wc-small" style="margin-top:6px">{t('Modèle de Poisson v5, marchés de prédiction et expérience en Coupe du monde',
+                                                   'Poisson model v5, prediction markets and World Cup experience')}</div>
+</div>""", unsafe_allow_html=True)
+
+footer("Données : International Football Results (Kaggle, martj42) · Polymarket et Kalshi (mai 2026)",
+       "Data: International Football Results (Kaggle, martj42) · Polymarket and Kalshi (May 2026)")

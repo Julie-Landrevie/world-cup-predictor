@@ -1,0 +1,42 @@
+# Charte de Julie Landrevie (direction « Éditorial ») : la même que le site et les visuels LinkedIn.
+# Le visiteur choisit le thème dans le menu ⋮ (System / Light / Dark).
+
+[theme]
+font = "Lato:https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap"
+headingFont = "'DM Serif Display':https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap"
+headingFontWeights = 400
+baseRadius = "medium"
+showWidgetBorder = true
+
+[theme.light]
+primaryColor = "#0d8f84"
+backgroundColor = "#f6f1e7"
+secondaryBackgroundColor = "#fbf8f2"
+textColor = "#1c1917"
+borderColor = "#e4dccd"
+linkColor = "#0d8f84"
+dataframeHeaderBackgroundColor = "#efe8da"
+chartCategoricalColors = ["#0d8f84", "#cc4a12", "#c9c0b1", "#57534e", "#8a8580"]
+chartSequentialColors = ["#e8f3f1", "#c6e4df", "#9fd3cc", "#77c1b8", "#4fb0a5", "#2c9e93", "#0d8f84", "#0b7a71", "#08645c", "#064f49"]
+
+[theme.light.sidebar]
+backgroundColor = "#fbf8f2"
+borderColor = "#e4dccd"
+
+[theme.dark]
+primaryColor = "#2fb3a6"
+backgroundColor = "#13110f"
+secondaryBackgroundColor = "#1c1916"
+textColor = "#f2ede4"
+borderColor = "#302a24"
+linkColor = "#2fb3a6"
+dataframeHeaderBackgroundColor = "#24201c"
+chartCategoricalColors = ["#2fb3a6", "#e8692f", "#6f675d", "#b9b1a6", "#8a8379"]
+chartSequentialColors = ["#16302d", "#1a423e", "#1e554f", "#226860", "#267b71", "#2a8e82", "#2fb3a6", "#5cc4b9", "#89d5cc", "#b6e6df"]
+
+[theme.dark.sidebar]
+backgroundColor = "#1c1916"
+borderColor = "#302a24"
+
+[server]
+headless = true

@@ -2,7 +2,7 @@
 # Python 3.11+
 
 # Interface
-streamlit>=1.35.0
+streamlit>=1.50
 
 # Data science
 numpy>=1.26.0
@@ -14,3 +14,4 @@ loguru>=0.7.0
 
 # Optionnel — améliore les performances Streamlit
 watchdog>=4.0.0
+matplotlib>=3.7  # dégradé du tableau des scores (pandas Styler)
