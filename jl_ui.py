@@ -4,9 +4,13 @@ Même charte que le site julie-landrevie.github.io et les visuels LinkedIn :
 fond crème / encre, vert d'eau, une seule mise en avant rouille, DM Serif Display + Lato.
 
 - Thème clair et sombre : définis dans .streamlit/config.toml ([theme.light], [theme.dark]) ;
-  le visiteur choisit dans le menu ⋮ (System / Light / Dark). Les graphiques Altair et Plotly
-  suivent le thème (theme="streamlit") ; les figures matplotlib restent sur fond crème dans les
-  deux modes, comme les visuels du site.
+  le visiteur choisit dans le menu ⋮ (System / Light / Dark). Tout suit le thème affiché :
+  `setup()` lit le thème (st.context.theme) et remplit C, SEQ et DIV avec la palette claire ou
+  sombre ; les figures matplotlib, les terrains, Plotly et Altair utilisent donc les bonnes
+  couleurs. Quand le visiteur change de thème, la page est relancée automatiquement.
+  Règle pour le code des applications : jamais de couleur écrite en dur (ni "white", ni "#1c1917"),
+  toujours C["ink"], C["bg"], C["teal"]… ; et ne jamais mettre en cache une figure sans passer
+  theme_key() en argument.
 - Langue : sélecteur FR / EN en haut de la barre latérale, mémorisé dans l'adresse (?lang=en).
 
 Usage :
@@ -19,14 +23,19 @@ from __future__ import annotations
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Couleurs des données : lisibles sur fond crème comme sur fond sombre.
-C = dict(teal="#0d8f84", rust="#cc4a12", compare="#c9c0b1", ink="#1c1917", ink2="#57534e",
+# Palette claire (référence) ; C, SEQ et DIV prennent la palette active à chaque setup().
+LIGHT = dict(teal="#0d8f84", rust="#cc4a12", compare="#c9c0b1", ink="#1c1917", ink2="#57534e",
          muted="#8a8580", grid="#e4dccd", bg="#f6f1e7", card="#fbf8f2")
 # Version sombre (pour le CSS des encadrés, appliquée automatiquement).
 DARK = dict(teal="#2fb3a6", rust="#e8692f", compare="#6f675d", ink="#f2ede4", ink2="#b9b1a6",
             muted="#8a8379", grid="#302a24", bg="#13110f", card="#1c1916")
-SEQ = ["#e8f3f1", "#9fd3cc", "#4fb0a5", "#0d8f84", "#08645c"]       # dégradé vert d'eau
-DIV = ["#cc4a12", "#e7a481", "#f6f1e7", "#7fbdb5", "#0d8f84"]       # rouille → vert d'eau
+SEQ_LIGHT = ["#e8f3f1", "#9fd3cc", "#4fb0a5", "#0d8f84", "#08645c"]   # dégradé vert d'eau (du fond vers la donnée)
+SEQ_DARK = ["#1d2a27", "#1e554f", "#267b71", "#2fb3a6", "#89d5cc"]
+DIV_LIGHT = ["#cc4a12", "#e7a481", "#f6f1e7", "#7fbdb5", "#0d8f84"]   # rouille → vert d'eau
+DIV_DARK = ["#e8692f", "#8a4a2c", "#1c1916", "#1f6b63", "#2fb3a6"]
+C = dict(LIGHT)
+SEQ = list(SEQ_LIGHT)
+DIV = list(DIV_LIGHT)
 FONT = "Lato, 'Helvetica Neue', Arial, sans-serif"
 TITLE_FONT = "'DM Serif Display', Georgia, serif"
 
@@ -61,6 +70,39 @@ def _language_selector() -> None:
                          "☀ / ☾ Light or dark theme: ⋮ menu, top right."))
 
 
+# ------------------------------------------------------------------------------ thème
+def _detected_theme():
+    """'dark', 'light' ou None si cette version de Streamlit ne donne pas le thème."""
+    try:
+        th = st.context.theme.type
+    except Exception:
+        return None
+    return th if th in ("dark", "light") else None
+
+
+def is_dark() -> bool:
+    return _detected_theme() == "dark"
+
+
+def theme_key() -> str:
+    """À passer en argument des fonctions mises en cache qui dessinent une figure."""
+    return "dark" if is_dark() else "light"
+
+
+def rgba(color: str, alpha: float) -> str:
+    """Couleur hexadécimale avec transparence, au format CSS / Plotly."""
+    h = color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def _apply_palette() -> None:
+    dark = is_dark()
+    C.clear(); C.update(DARK if dark else LIGHT)
+    SEQ[:] = SEQ_DARK if dark else SEQ_LIGHT
+    DIV[:] = DIV_DARK if dark else DIV_LIGHT
+
+
 # ------------------------------------------------------------------------------ style
 def _css() -> str:
     def block(p: dict) -> str:
@@ -92,22 +134,31 @@ h1 {{ line-height: 1.1 !important; }}
 
 
 def _theme_sync() -> None:
-    """Pose data-jl-theme="dark" ou "light" sur la page selon le fond affiché par Streamlit,
-    pour que les encadrés HTML suivent la bascule clair / sombre sans relancer l'application."""
+    """Pose data-jl-theme="dark" ou "light" sur la page selon le fond affiché (encadrés HTML),
+    et relance l'application quand le thème affiché ne correspond plus à celui des figures
+    (bascule dans le menu ⋮), pour que graphiques et terrains changent aussi."""
+    server = _detected_theme() or ""
     script = """<script>
 (function(){
   var w = window.parent && window.parent.document ? window.parent : window;
+  w.__jlServerTheme = "%s";
   if (w.__jlThemeSync) return; w.__jlThemeSync = true;
   var d = w.document;
   function lum(c){ var m = c.match(/\\d+/g); if(!m) return 1; return (0.299*m[0]+0.587*m[1]+0.114*m[2])/255; }
+  function rerun(){
+    d.dispatchEvent(new w.KeyboardEvent('keydown', {key: 'r', code: 'KeyR', keyCode: 82, which: 82, bubbles: true}));
+  }
   function sync(){
     var app = d.querySelector('[data-testid="stApp"]') || d.body;
-    var dark = lum(w.getComputedStyle(app).backgroundColor) < 0.5;
-    d.body.setAttribute('data-jl-theme', dark ? 'dark' : 'light');
+    var th = lum(w.getComputedStyle(app).backgroundColor) < 0.5 ? 'dark' : 'light';
+    d.body.setAttribute('data-jl-theme', th);
+    var srv = w.__jlServerTheme;
+    if (srv && th !== srv && w.__jlAsked !== th) { w.__jlAsked = th; rerun(); }
+    if (srv && th === srv) { w.__jlAsked = null; }
   }
   sync(); w.setInterval(sync, 400);
 })();
-</script>"""
+</script>""" % server
     try:
         st.html(script, unsafe_allow_javascript=True)      # Streamlit récent
     except TypeError:
@@ -117,6 +168,7 @@ def _theme_sync() -> None:
 def setup(title_fr: str, title_en: str, icon: str = "⚽", layout: str = "wide") -> None:
     """À appeler en tout premier : page, langue, style."""
     st.set_page_config(page_title=title_fr, page_icon=icon, layout=layout)
+    _apply_palette()
     _language_selector()
     st.markdown(_css(), unsafe_allow_html=True)
     _theme_sync()
@@ -157,11 +209,11 @@ def fr_num(x: float, dec: int = 1, pct: bool = False) -> str:
 
 # ------------------------------------------------------------------------------ graphiques
 def altair_style(chart):
-    """Polices de la charte ; couleurs de fond et de texte laissées au thème Streamlit."""
+    """Polices et grille de la charte ; fond et texte laissés au thème Streamlit (clair ou sombre)."""
     return (chart.configure(font=FONT)
             .configure_view(stroke=None)
             .configure_axis(domain=False, ticks=False, labelFont=FONT, titleFont=FONT,
-                            titleFontWeight="normal", labelLimit=260)
+                            titleFontWeight="normal", labelLimit=260, gridColor=C["grid"])
             .configure_legend(labelFont=FONT, titleFont=FONT, titleFontWeight="normal"))
 
 
@@ -170,6 +222,8 @@ def plotly_style(fig, height: int | None = None):
     fig.update_layout(font_family=FONT, colorway=[C["teal"], C["rust"], C["compare"], C["ink2"], C["muted"]],
                       margin=dict(l=10, r=10, t=40, b=10), legend_title_text="",
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    fig.update_xaxes(gridcolor=C["grid"], zerolinecolor=C["grid"])
+    fig.update_yaxes(gridcolor=C["grid"], zerolinecolor=C["grid"])
     if height:
         fig.update_layout(height=height)
     return fig
@@ -179,7 +233,7 @@ _MPL_DONE = False
 
 
 def mpl_style():
-    """matplotlib / mplsoccer : fond crème et polices de la charte (figures identiques en clair et en sombre)."""
+    """matplotlib / mplsoccer : couleurs du thème actif (fond crème ou sombre) et polices de la charte."""
     global _MPL_DONE
     import matplotlib as mpl
     if not _MPL_DONE:
@@ -191,6 +245,7 @@ def mpl_style():
         "xtick.color": C["ink2"], "ytick.color": C["ink2"], "grid.color": C["grid"],
         "axes.spines.top": False, "axes.spines.right": False,
         "axes.prop_cycle": mpl.cycler(color=[C["teal"], C["rust"], C["compare"], C["ink2"]]),
+        "legend.labelcolor": C["ink"], "axes.titlecolor": C["ink"],
         "font.family": ["Lato", "DejaVu Sans"], "axes.titleweight": "normal",
         "legend.frameon": False,
     })

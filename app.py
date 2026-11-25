@@ -10,12 +10,12 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from jl_ui import footer, fr_num, header, kpi, note, setup, t  # noqa: E402
+from jl_ui import SEQ, footer, fr_num, header, kpi, note, setup, t  # noqa: E402
 
 setup("World Cup 2026 Predictor — Julie Landrevie", "World Cup 2026 Predictor — Julie Landrevie", icon="🏆")
 
 import pandas as pd  # noqa: E402
-from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
+from matplotlib.colors import LinearSegmentedColormap, to_hex  # noqa: E402
 
 from src.data.collect import load_goalscorers, load_results, load_wc2026_fixtures  # noqa: E402
 from src.models.match_predictor import BOOKMAKER_PROBS, PoissonPredictor  # noqa: E402
@@ -402,8 +402,14 @@ with tab5:
         n = 5
         df_matrix = pd.DataFrame({f"{away} {a}": [matrix[h, a] * 100 for h in range(n + 1)] for a in range(n + 1)},
                                  index=[f"{home} {h}" for h in range(n + 1)])
-        st.dataframe(df_matrix.style.format(lambda v: pct(v)).background_gradient(cmap=LinearSegmentedColormap.from_list("jl", ["#e8f3f1", "#9fd3cc", "#0d8f84"]), axis=None),
-                     width="stretch")
+        cmap = LinearSegmentedColormap.from_list("jl", SEQ)
+        vmax = float(df_matrix.values.max()) or 1.0
+
+        def _cell(v):   # fond du dégradé du thème actif, texte foncé ou clair selon ce fond
+            r, g, b, _ = cmap(min(v / vmax, 1.0))
+            ink = "#1c1917" if 0.299 * r + 0.587 * g + 0.114 * b > 0.55 else "#f2ede4"
+            return f"background-color: {to_hex((r, g, b))}; color: {ink}"
+        st.dataframe(df_matrix.style.format(lambda v: pct(v)).map(_cell), width="stretch")
 
         st.markdown(f"**{t('Buteurs probables', 'Likely scorers')}**")
         col_sh, col_sa = st.columns(2, gap="large")
